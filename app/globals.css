@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* Jamazeb design tokens. Every colour in the UI comes from this list. */
+@theme {
+  --color-ivory: #faf8f3;
+  --color-sand: #f1ede3;
+  --color-stone: #f4f2ec;
+  --color-line: #e6e2d8;
+  --color-line-strong: #cfc9bb;
+  --color-charcoal: #1f1f1d;
+  --color-muted: #5f5e59;
+  --color-muted-dark: #a8a49a;
+  --color-emerald: #0f5a45;
+  --color-emerald-soft: #e7efea;
+  --color-rust: #a85a3c;
+  --color-rust-soft: #fbf1ec;
+
+  --font-sans: var(--font-jost), system-ui, sans-serif;
+  --font-serif: var(--font-cormorant), Georgia, serif;
+}
+
+/* Base styles live in the "base" layer so utility classes (text-white etc.)
+   always win over them. Unlayered rules would override every utility. */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--color-ivory);
+    color: var(--color-charcoal);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: var(--color-emerald);
+  }
+
+  /* Visible keyboard focus everywhere, never on mouse click. */
+  :focus-visible {
+    outline: 2px solid var(--color-emerald);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
