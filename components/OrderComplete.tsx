@@ -176,6 +176,9 @@ function Confirmation({ order }: { order: Order }) {
           <button type="button" onClick={() => openChat(whatsappMessage)} className={secondary}>
             <ChatIcon size={20} /> Confirm on WhatsApp
           </button>
+          <Link href={`/track?order=${order.id}`} className={secondary}>
+            Track your order
+          </Link>
           <Link href="/collections/new-in" className={primary}>
             Continue shopping
           </Link>

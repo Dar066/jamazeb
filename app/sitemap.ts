@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { categories, products } from "@/lib/catalog";
+import { helpTopics } from "@/lib/help";
 import { site } from "@/lib/site";
 
 // Lists every public page so search engines can find them.
@@ -16,6 +17,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${site.url}/products/${p.slug}`,
       changeFrequency: "weekly" as const,
       priority: 0.7,
+    })),
+    ...["/help", ...helpTopics.map((t) => t.href)].map((path) => ({
+      url: `${site.url}${path}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
     })),
   ];
 }

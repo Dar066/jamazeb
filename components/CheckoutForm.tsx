@@ -8,6 +8,7 @@ import { clearCart, useCart } from "@/lib/cart-store";
 import { formatPrice } from "@/lib/format";
 import { useHydrated } from "@/lib/local-store";
 import { saveOrder } from "@/lib/order-store";
+import { getProfile, saveAddress, saveProfile } from "@/lib/profile-store";
 import type { CheckoutRequest, CheckoutResponse, PaymentMethod } from "@/lib/orders";
 import { shipping } from "@/lib/shipping";
 import { LIMITS, validateCustomer, type CustomerErrors, type CustomerInput } from "@/lib/validation";
@@ -30,15 +31,21 @@ export function CheckoutForm() {
   const hydrated = useHydrated();
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [customer, setCustomer] = useState<CustomerInput>({
-    phone: "",
-    email: "",
-    name: "",
-    city: "",
-    address: "",
-    notes: "",
-    whatsappUpdates: true,
+  // Filled in from the details saved on this device, if any (see Account > Profile).
+  const [customer, setCustomer] = useState<CustomerInput>(() => {
+    const profile = getProfile();
+    const home = profile.addresses[0];
+    return {
+      phone: profile.phone,
+      email: profile.email,
+      name: home?.name || profile.name,
+      city: home?.city ?? "",
+      address: home?.address ?? "",
+      notes: home?.notes ?? "",
+      whatsappUpdates: profile.whatsappUpdates,
+    };
   });
+  const [remember, setRemember] = useState(true);
   const [payment, setPayment] = useState<PaymentMethod>("cod");
   const [errors, setErrors] = useState<CustomerErrors>({});
   const [formError, setFormError] = useState("");
@@ -136,6 +143,7 @@ export function CheckoutForm() {
     }
 
     saveOrder({ ...data.order, paymentUrl: data.redirectUrl });
+    if (remember) rememberDetails(data.order.customer);
     setState("done");
     if (data.redirectUrl) {
       // The cart is kept until the payment succeeds.
@@ -205,6 +213,15 @@ export function CheckoutForm() {
               className="h-5 w-5 accent-emerald"
             />
             Send order updates on WhatsApp
+          </label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-5 w-5 accent-emerald"
+            />
+            Save my details on this device for next time
           </label>
         </fieldset>
 
@@ -371,4 +388,14 @@ export function CheckoutForm() {
       </aside>
     </form>
   );
+}
+
+/** Saves contact details and the delivery address to Account > Profile / Saved addresses. */
+function rememberDetails(c: CustomerInput) {
+  const profile = getProfile();
+  saveProfile({ name: profile.name || c.name, phone: c.phone, email: c.email, whatsappUpdates: c.whatsappUpdates });
+  const known = profile.addresses.some((a) => a.city === c.city && a.address.toLowerCase() === c.address.toLowerCase());
+  if (!known) {
+    saveAddress({ label: profile.addresses.length === 0 ? "Home" : "Address", name: c.name, city: c.city, address: c.address, notes: c.notes });
+  }
 }

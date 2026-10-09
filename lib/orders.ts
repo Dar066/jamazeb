@@ -48,6 +48,16 @@ export type Order = {
   deliveryEstimate: string;
   /** Online payments: the payment page address, so a declined payment can be retried. */
   paymentUrl?: string;
+  /** Delivery progress, see lib/fulfilment.ts. Missing means just placed. */
+  fulfilment?: Fulfilment;
+};
+
+export type Fulfilment = {
+  /** Index into FULFILMENT_STEPS. */
+  step: number;
+  /** When each step was reached (ISO dates), indexed like FULFILMENT_STEPS. */
+  times: string[];
+  trackingNumber?: string;
 };
 
 /** What the checkout page sends to POST /api/orders. Prices are never sent: the server sets them. */

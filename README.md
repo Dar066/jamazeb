@@ -22,6 +22,7 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_SITE_URL` | Public address of the store, used for SEO links and the sitemap |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Store WhatsApp number (digits only, e.g. `923001234567`). Empty = demo note in chat |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Contact email shown in the footer |
+| `NEXT_PUBLIC_SUPPORT_HOURS` | Customer care hours on Help > Contact, e.g. `Mon–Sat, 10am–7pm` |
 | `MOCK_PAYMENT_SECRET` | Server-only key that signs demo payment links and results. Any long random string |
 
 ## Project structure
@@ -38,7 +39,7 @@ lib/            site settings, mock catalogue, stores, validation, shipping, pay
 1. **Foundation:** design system, layout, home page, chat widget, SEO basics, security headers ✅
 2. **Catalogue:** collection pages with filters and sorting, product pages with product schema, search ✅
 3. **Cart & checkout:** cart, wishlist, checkout with cash on delivery and mock PayFast ✅
-4. Order tracking, exchange/refund form, customer account
+4. **Customer care:** order tracking, exchange/refund form, help pages with FAQ schema, customer account ✅
 5. Admin dashboard
 6. Supabase data, then Shopify adapter
 7. Performance and security pass, documentation and hand-over
@@ -55,6 +56,17 @@ lib/            site settings, mock catalogue, stores, validation, shipping, pay
    order is shown as paid. An edited amount, order number or result is rejected.
 5. To go live, a real `PaymentProvider` (PayFast) and `ShippingProvider` (courier) replace the mocks, with no
    page changes. Until Phase 6, orders are kept in the shopper's browser rather than a database.
+
+## After the order
+
+- **Tracking** (`/track`): order number + mobile number. Steps live in `lib/fulfilment.ts`. In the demo a
+  button moves the order forward; in Phase 5 the admin dashboard does it, and a courier API can later.
+- **Exchanges & refunds** (`/returns`): open for 5 days after delivery. Cash-on-delivery refunds collect an
+  Easypaisa, JazzCash or bank account; online payments are refunded to the same card or wallet.
+  Requests go through `POST /api/returns`, which validates them on the server.
+- **Account** (`/account`): orders, return requests, saved addresses, wishlist and profile. Checkout fills in
+  the saved details. Until Phase 6 these are kept on the shopper's device; sign-in arrives with the database.
+- **Help** (`/help/...`): shipping, payments, size guide, contact and FAQs. Wording lives in `lib/help.ts`.
 
 ## Notes
 

@@ -19,6 +19,8 @@ export const site = {
   // Leave empty until the store's real WhatsApp number is known.
   whatsappNumber: (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/[^0-9]/g, ""),
   email: process.env.NEXT_PUBLIC_CONTACT_EMAIL || "",
+  /** Customer care hours shown on the contact page, e.g. "Mon–Sat, 10am–7pm". */
+  supportHours: process.env.NEXT_PUBLIC_SUPPORT_HOURS || "",
   deliveryPromise: "within 15 days",
   exchangeWindowDays: 5,
 } as const;
