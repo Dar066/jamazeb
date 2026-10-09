@@ -7,7 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // Private or transactional pages that should never appear in search results.
-      disallow: ["/admin", "/account", "/cart", "/checkout", "/api/"],
+      disallow: ["/admin", "/account", "/cart", "/checkout", "/pay", "/api/"],
     },
     sitemap: `${site.url}/sitemap.xml`,
   };

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { addToCart, useCartCount } from "@/lib/cart-store";
 import { STITCHED_SIZES, STITCHING_PRICE, isOnSale, type Product } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
+import { MAX_QTY } from "@/lib/orders";
 import { site } from "@/lib/site";
 import { openChat } from "./ChatWidget";
 import { ChatIcon } from "./icons";
@@ -159,7 +160,7 @@ export function ProductPurchase({ product }: { product: Product }) {
           <button
             type="button"
             aria-label="Increase quantity"
-            onClick={() => setQty((q) => Math.min(10, q + 1))}
+            onClick={() => setQty((q) => Math.min(MAX_QTY, q + 1))}
             className="h-[52px] w-11 cursor-pointer text-xl"
           >
             +
@@ -173,7 +174,7 @@ export function ProductPurchase({ product }: { product: Product }) {
         >
           {soldOut ? "Sold out" : "Add to cart"}
         </button>
-        <WishlistButton productName={product.name} className="h-[52px]! w-[52px]! border border-charcoal" />
+        <WishlistButton slug={product.slug} productName={product.name} className="h-[52px]! w-[52px]! border border-charcoal" />
       </div>
 
       <div aria-live="polite">

@@ -22,7 +22,7 @@ export function ProductCard({ product }: { product: Product }) {
             Sale
           </span>
         )}
-        <WishlistButton productName={product.name} className="absolute top-2 right-2" />
+        <WishlistButton slug={product.slug} productName={product.name} className="absolute top-2 right-2" />
       </div>
       <p className="text-[13px] tracking-[0.06em] text-muted uppercase">{product.type}</p>
       <h3 className="text-[17px] font-normal">

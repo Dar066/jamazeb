@@ -5,7 +5,7 @@ project and a reusable starter for client stores.
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Vercel
 **Data:** mock catalogue for the demo (`lib/catalog.ts`), with Supabase and Shopify adapters planned.
-**Payments & delivery:** mock PayFast and courier providers behind swappable interfaces (later phases).
+**Payments & delivery:** mock PayFast and courier providers behind swappable interfaces (`lib/payments/`, `lib/shipping.ts`).
 
 ## Run it locally
 
@@ -22,24 +22,39 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_SITE_URL` | Public address of the store, used for SEO links and the sitemap |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Store WhatsApp number (digits only, e.g. `923001234567`). Empty = demo note in chat |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Contact email shown in the footer |
+| `MOCK_PAYMENT_SECRET` | Server-only key that signs demo payment links and results. Any long random string |
 
 ## Project structure
 
 ```
 app/            pages, layout, SEO files (robots, sitemap, icon), fonts
-components/     header, footer, product card, chat widget, forms
-lib/            site settings, mock catalogue, helpers
+app/api/        order and payment endpoints
+components/     header, footer, product card, cart, checkout, chat widget, forms
+lib/            site settings, mock catalogue, stores, validation, shipping, payments
 ```
 
 ## Build phases
 
 1. **Foundation:** design system, layout, home page, chat widget, SEO basics, security headers ✅
 2. **Catalogue:** collection pages with filters and sorting, product pages with product schema, search ✅
-3. Cart, wishlist, checkout with COD and mock PayFast
+3. **Cart & checkout:** cart, wishlist, checkout with cash on delivery and mock PayFast ✅
 4. Order tracking, exchange/refund form, customer account
 5. Admin dashboard
 6. Supabase data, then Shopify adapter
 7. Performance and security pass, documentation and hand-over
+
+## How checkout works
+
+1. The cart and wishlist are saved in the shopper's browser (`lib/cart-store.ts`, `lib/wishlist-store.ts`).
+2. Checkout sends only product, variant and quantity to `POST /api/orders`. The server validates the
+   details, re-reads every price and stock level from the catalogue, adds the delivery charge for the city
+   and creates the order. Prices sent from the browser are never trusted.
+3. **Cash on delivery:** the order is confirmed straight away; the store confirms it on WhatsApp before dispatch.
+4. **PayFast (demo):** the shopper is sent to `/pay/mock` with a signed link (HMAC-SHA256). They approve,
+   decline or cancel; the result comes back signed and is checked by `POST /api/payments/verify` before the
+   order is shown as paid. An edited amount, order number or result is rejected.
+5. To go live, a real `PaymentProvider` (PayFast) and `ShippingProvider` (courier) replace the mocks, with no
+   page changes. Until Phase 6, orders are kept in the shopper's browser rather than a database.
 
 ## Notes
 

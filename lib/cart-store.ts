@@ -1,9 +1,10 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { createLocalStore } from "./local-store";
+import { MAX_QTY } from "./orders";
 
-// A small cart kept in the visitor's browser (localStorage). The cart and
-// checkout pages in the next phase read and update this same store.
+// The visitor's cart, saved in their browser. Prices here are for display only:
+// the server recalculates every price from the catalogue when an order is placed.
 
 export type CartItem = {
   /** Unique per product + variant, so the same suit in two sizes is two lines. */
@@ -21,72 +22,19 @@ export type CartItem = {
   size: string;
 };
 
-const STORAGE_KEY = "jamazeb-cart";
-const MAX_QTY = 10;
-const EMPTY: CartItem[] = [];
+const store = createLocalStore<CartItem[]>("jamazeb-cart", [], Array.isArray);
 
-let items: CartItem[] = EMPTY;
-let loaded = false;
-const listeners = new Set<() => void>();
-
-function load() {
-  if (loaded || typeof window === "undefined") return;
-  loaded = true;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    items = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    items = [];
-  }
-}
-
-function save(next: CartItem[]) {
-  items = next;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // Private browsing or storage full: the cart still works for this visit.
-  }
-  listeners.forEach((l) => l());
-}
-
-function subscribe(listener: () => void) {
-  load();
-  listeners.add(listener);
-  // Keep tabs in sync when the cart changes in another tab.
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) {
-      loaded = false;
-      load();
-      listener();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(listener);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-function getSnapshot() {
-  load();
-  return items;
-}
-
-export function useCart(): CartItem[] {
-  return useSyncExternalStore(subscribe, getSnapshot, () => EMPTY);
-}
+export const useCart = store.useValue;
 
 export function useCartCount(): number {
   return useCart().reduce((n, i) => n + i.qty, 0);
 }
 
 export function addToCart(item: Omit<CartItem, "key">) {
-  load();
+  const items = store.get();
   const key = [item.slug, item.colour, item.option, item.size].join("|");
   const existing = items.find((i) => i.key === key);
-  save(
+  store.set(
     existing
       ? items.map((i) => (i.key === key ? { ...i, qty: Math.min(MAX_QTY, i.qty + item.qty) } : i))
       : [...items, { ...item, key, qty: Math.min(MAX_QTY, item.qty) }],
@@ -94,9 +42,13 @@ export function addToCart(item: Omit<CartItem, "key">) {
 }
 
 export function setQuantity(key: string, qty: number) {
-  save(items.map((i) => (i.key === key ? { ...i, qty: Math.max(1, Math.min(MAX_QTY, qty)) } : i)));
+  store.set(store.get().map((i) => (i.key === key ? { ...i, qty: Math.max(1, Math.min(MAX_QTY, qty)) } : i)));
 }
 
 export function removeFromCart(key: string) {
-  save(items.filter((i) => i.key !== key));
+  store.set(store.get().filter((i) => i.key !== key));
+}
+
+export function clearCart() {
+  store.set([]);
 }
