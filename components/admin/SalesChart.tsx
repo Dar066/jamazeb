@@ -60,25 +60,28 @@ export function SalesChart({ days }: { days: Day[] }) {
           })}
         </div>
       </div>
-      <table className="sr-only">
-        <caption>Sales per day</caption>
-        <thead>
-          <tr>
-            <th scope="col">Day</th>
-            <th scope="col">Sales</th>
-            <th scope="col">Orders</th>
-          </tr>
-        </thead>
-        <tbody>
-          {days.map((d) => (
-            <tr key={d.key}>
-              <th scope="row">{d.key}</th>
-              <td>{formatPrice(d.revenue)}</td>
-              <td>{d.orders}</td>
+      {/* Wrapped in a hidden div: some browsers draw a table caption even when the table itself is hidden. */}
+      <div className="sr-only">
+        <table>
+          <caption>Sales per day</caption>
+          <thead>
+            <tr>
+              <th scope="col">Day</th>
+              <th scope="col">Sales</th>
+              <th scope="col">Orders</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {days.map((d) => (
+              <tr key={d.key}>
+                <th scope="row">{d.key}</th>
+                <td>{formatPrice(d.revenue)}</td>
+                <td>{d.orders}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }
