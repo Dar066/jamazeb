@@ -161,10 +161,16 @@ function OrderStatusCard({ order }: { order: Order }) {
         </>
       ) : (
         <p className="text-[15px]">
-          This order hasn&apos;t been paid, so it won&apos;t be dispatched.{" "}
-          <Link href="/checkout" className="underline underline-offset-4">
-            Go to checkout
-          </Link>
+          {order.status === "cancelled" ? (
+            "This order was cancelled by the store."
+          ) : (
+            <>
+              This order hasn&apos;t been paid, so it won&apos;t be dispatched.{" "}
+              <Link href="/checkout" className="underline underline-offset-4">
+                Go to checkout
+              </Link>
+            </>
+          )}
         </p>
       )}
 

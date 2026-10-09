@@ -4,6 +4,7 @@ import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { ChatWidget } from "@/components/ChatWidget";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { StoreOnly } from "@/components/StoreOnly";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -56,11 +57,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           Skip to content
         </a>
-        <AnnouncementBar />
-        <Header />
+        <StoreOnly>
+          <AnnouncementBar />
+          <Header />
+        </StoreOnly>
         <main id="main">{children}</main>
-        <Footer />
-        <ChatWidget />
+        <StoreOnly>
+          <Footer />
+          <ChatWidget />
+        </StoreOnly>
       </body>
     </html>
   );

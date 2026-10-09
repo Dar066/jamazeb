@@ -23,3 +23,9 @@ export function updateOrder(id: string, change: (order: Order) => Order) {
 export function setOrderStatus(id: string, status: OrderStatus) {
   store.set(store.get().map((o) => (o.id === id ? { ...o, status } : o)));
 }
+
+export const getOrders = store.get;
+
+export function replaceOrders(list: Order[]) {
+  store.set(list);
+}

@@ -41,7 +41,24 @@ export type ReturnInput = {
 
 export type ReturnErrors = Partial<Record<"items" | "exchangeFor" | "reason" | "details" | "refundMethod" | "accountTitle" | "accountNumber" | "agreed", string>>;
 
-export type ReturnRequest = Omit<ReturnInput, "agreed"> & { id: string; createdAt: string; status: "received" };
+export type ReturnStatus = "received" | "approved" | "rejected";
+
+export type ReturnRequest = Omit<ReturnInput, "agreed"> & {
+  id: string;
+  createdAt: string;
+  status: ReturnStatus;
+  /** Set by the store when approving or rejecting. */
+  decidedAt?: string;
+  /** Demo data added from the admin dashboard. */
+  sample?: boolean;
+};
+
+/** What the customer sees for each request status. */
+export const returnStatusLabels: Record<ReturnStatus, string> = {
+  received: "Received, we'll confirm on WhatsApp",
+  approved: "Approved, our courier will collect the item",
+  rejected: "Not accepted, we'll explain on WhatsApp",
+};
 
 /** Cash-on-delivery refunds need somewhere to send the money; online payments go back to the card or wallet. */
 export function needsRefundAccount(input: Pick<ReturnInput, "kind" | "payment">): boolean {

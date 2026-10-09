@@ -72,7 +72,7 @@ function OrderResult({ id, outcome, amount, sig }: ResultProps) {
         return;
       }
       // A paid order never goes back to unpaid, e.g. if an old result page is reopened.
-      if (current.status !== "paid") {
+      if (current.status !== "paid" && current.status !== "cancelled") {
         setOrderStatus(id, STATUS_FOR[result.outcome]);
         if (result.outcome === "paid") clearCart();
       }
@@ -115,6 +115,22 @@ function OrderResult({ id, outcome, amount, sig }: ResultProps) {
       <Message title="Order not found">
         <p>We can&apos;t find {id ? `order ${id}` : "this order"} in this browser. Orders are saved on the device they were placed from.</p>
         <Actions>
+          <Link href="/collections/new-in" className={primary}>
+            Continue shopping
+          </Link>
+        </Actions>
+      </Message>
+    );
+  }
+
+  if (order.status === "cancelled") {
+    return (
+      <Message title="This order was cancelled">
+        <p>Order {order.id} was cancelled by the store. If you have a question about it, message us on WhatsApp.</p>
+        <Actions>
+          <button type="button" onClick={() => openChat(`Hi, I have a question about order ${id}.`)} className={secondary}>
+            <ChatIcon size={20} /> Message us
+          </button>
           <Link href="/collections/new-in" className={primary}>
             Continue shopping
           </Link>

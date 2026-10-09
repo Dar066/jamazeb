@@ -11,12 +11,14 @@ import { useHydrated } from "@/lib/local-store";
 import { useOrders } from "@/lib/order-store";
 import type { Order } from "@/lib/orders";
 import { useReturns } from "@/lib/return-store";
+import { returnStatusLabels } from "@/lib/returns";
 import { site } from "@/lib/site";
 import { btnPrimary, btnSmall } from "./ui";
 
 export function AccountOrders() {
-  const orders = useOrders();
-  const returns = useReturns();
+  // Sample orders loaded from the admin dashboard belong to other (demo) customers.
+  const orders = useOrders().filter((o) => !o.sample);
+  const returns = useReturns().filter((r) => !r.sample);
   const hydrated = useHydrated();
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[50vh]" />;
@@ -59,7 +61,9 @@ export function AccountOrders() {
                     Order {r.orderId} · Sent {formatDate(r.createdAt)} · {r.items.map((i) => i.name).join(", ")}
                   </p>
                 </div>
-                <p className="text-sm text-emerald">Received, we&apos;ll confirm on WhatsApp</p>
+                <p className={`text-sm ${r.status === "rejected" ? "text-rust" : "text-emerald"}`}>
+                  {returnStatusLabels[r.status] ?? returnStatusLabels.received}
+                </p>
               </li>
             ))}
           </ul>
@@ -76,7 +80,9 @@ function OrderCard({ order }: { order: Order }) {
   const returns = returnEligibility(order);
   const count = order.lines.reduce((n, l) => n + l.qty, 0);
 
-  const note = !active
+  const note = order.status === "cancelled"
+    ? "Cancelled by the store."
+    : !active
     ? "Not paid, so it won't be dispatched."
     : !delivered
       ? `Arrives ${order.deliveryEstimate} of ordering.`

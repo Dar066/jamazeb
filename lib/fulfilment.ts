@@ -43,6 +43,8 @@ export function displayStatus(order: Order): string {
       return "Payment declined";
     case "payment-cancelled":
       return "Payment cancelled";
+    case "cancelled":
+      return "Cancelled";
     default:
       return FULFILMENT_STEPS[currentStep(order)].label;
   }

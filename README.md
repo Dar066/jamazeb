@@ -23,6 +23,8 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | Store WhatsApp number (digits only, e.g. `923001234567`). Empty = demo note in chat |
 | `NEXT_PUBLIC_CONTACT_EMAIL` | Contact email shown in the footer |
 | `NEXT_PUBLIC_SUPPORT_HOURS` | Customer care hours on Help > Contact, e.g. `Mon–Sat, 10am–7pm` |
+| `ADMIN_PASSWORD` | Admin dashboard password. Empty = demo mode (password `jamazeb-demo` shown on the login page) |
+| `ADMIN_SESSION_SECRET` | Server-only key that signs the admin sign-in cookie. Any long random string |
 | `MOCK_PAYMENT_SECRET` | Server-only key that signs demo payment links and results. Any long random string |
 
 ## Project structure
@@ -40,7 +42,7 @@ lib/            site settings, mock catalogue, stores, validation, shipping, pay
 2. **Catalogue:** collection pages with filters and sorting, product pages with product schema, search ✅
 3. **Cart & checkout:** cart, wishlist, checkout with cash on delivery and mock PayFast ✅
 4. **Customer care:** order tracking, exchange/refund form, help pages with FAQ schema, customer account ✅
-5. Admin dashboard
+5. **Admin dashboard:** orders and delivery steps, products and stock, customers, exchange/refund approvals, reports with CSV ✅
 6. Supabase data, then Shopify adapter
 7. Performance and security pass, documentation and hand-over
 
@@ -67,6 +69,24 @@ lib/            site settings, mock catalogue, stores, validation, shipping, pay
 - **Account** (`/account`): orders, return requests, saved addresses, wishlist and profile. Checkout fills in
   the saved details. Until Phase 6 these are kept on the shopper's device; sign-in arrives with the database.
 - **Help** (`/help/...`): shipping, payments, size guide, contact and FAQs. Wording lives in `lib/help.ts`.
+
+## Admin dashboard
+
+`/admin` is protected by `proxy.ts`: without a valid signed cookie every admin page redirects to `/admin/login`.
+The password is checked on the server (`/api/admin/login`), failed attempts are slowed down, and the cookie is
+HTTP-only, SameSite=strict and expires after 8 hours.
+
+- **Dashboard:** sales, orders, average order, cash-on-delivery share, 7-day sales chart, things that need attention.
+- **Orders:** filter, search, open an order, and move it on: confirm → book courier → in transit → out for delivery →
+  delivered. Customers see each step on their tracking page. Orders not yet booked can be cancelled.
+- **Products:** edit price, sale price, stock and status; add products; low-stock filter.
+- **Customers:** grouped by mobile number with order count and total spent.
+- **Returns:** approve or reject exchange/refund requests; the customer sees the decision in their account.
+- **Reports:** last 7 / 30 days / all time, payment split, top products, orders by city, CSV download.
+- **Load sample data** fills the dashboard with realistic demo orders; **Clear sample data** removes them.
+
+In the demo, the dashboard works on the orders saved in this browser, and product edits don't change the shop pages.
+Phase 6 moves orders, products and staff logins to the database.
 
 ## Notes
 

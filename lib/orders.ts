@@ -13,7 +13,8 @@ export type OrderStatus =
   | "awaiting-payment" // sent to the payment page, result not back yet
   | "paid"
   | "payment-failed"
-  | "payment-cancelled";
+  | "payment-cancelled"
+  | "cancelled"; // cancelled by the store, e.g. a cash-on-delivery order the customer didn't confirm
 
 export type OrderLine = {
   slug: string;
@@ -50,6 +51,8 @@ export type Order = {
   paymentUrl?: string;
   /** Delivery progress, see lib/fulfilment.ts. Missing means just placed. */
   fulfilment?: Fulfilment;
+  /** Demo data added from the admin dashboard; removed with "Clear sample data". */
+  sample?: boolean;
 };
 
 export type Fulfilment = {
@@ -77,4 +80,5 @@ export const statusLabels: Record<OrderStatus, string> = {
   paid: "Paid",
   "payment-failed": "Payment declined",
   "payment-cancelled": "Payment cancelled",
+  cancelled: "Cancelled",
 };
