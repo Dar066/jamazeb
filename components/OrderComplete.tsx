@@ -7,7 +7,7 @@ import { describeVariant } from "@/lib/cart-pricing";
 import { clearCart } from "@/lib/cart-store";
 import { formatPrice } from "@/lib/format";
 import { useHydrated } from "@/lib/local-store";
-import { getOrder, setOrderStatus, useOrders } from "@/lib/order-store";
+import { getOrder, mergeOrders, setOrderStatus, useOrders } from "@/lib/order-store";
 import type { Order, OrderStatus } from "@/lib/orders";
 import type { PaymentOutcome, PaymentResult } from "@/lib/payments/types";
 import { site } from "@/lib/site";
@@ -53,29 +53,33 @@ function OrderResult({ id, outcome, amount, sig }: ResultProps) {
     if (!outcome || !hydrated) return;
     let cancelled = false;
     (async () => {
-      let result: PaymentResult | null = null;
+      let result: (PaymentResult & { order?: Order | null }) | null = null;
       try {
         const res = await fetch("/api/payments/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ order: id, amount, outcome, sig }),
         });
-        result = (await res.json()) as PaymentResult;
+        result = (await res.json()) as PaymentResult & { order?: Order | null };
       } catch {
         result = null;
       }
       if (cancelled) return;
 
-      const current = getOrder(id);
+      const before = getOrder(id);
+      // With a database the server sends the order as recorded there; otherwise this device's copy is used.
+      const current = result?.order ?? before;
       if (!result?.valid || !current || current.payment !== "payfast" || current.total !== result.amount) {
         setCheck("invalid");
         return;
       }
-      // A paid order never goes back to unpaid, e.g. if an old result page is reopened.
-      if (current.status !== "paid" && current.status !== "cancelled") {
+      if (result.order) {
+        mergeOrders([result.order]);
+      } else if (current.status !== "paid" && current.status !== "cancelled") {
+        // A paid order never goes back to unpaid, e.g. if an old result page is reopened.
         setOrderStatus(id, STATUS_FOR[result.outcome]);
-        if (result.outcome === "paid") clearCart();
       }
+      if (result.outcome === "paid" && before?.status !== "paid" && (result.order?.status ?? "paid") === "paid") clearCart();
       setCheck("valid");
     })();
     return () => {

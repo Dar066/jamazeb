@@ -1,6 +1,10 @@
 import { randomInt } from "node:crypto";
 import { json, readJson } from "@/lib/api";
+import { describeVariant } from "@/lib/cart-pricing";
 import { getProduct } from "@/lib/catalog";
+import { databaseEnabled } from "@/lib/db/client";
+import { findOrder, insertReturn } from "@/lib/db/orders";
+import { returnEligibility } from "@/lib/fulfilment";
 import { MAX_LINES, MAX_QTY } from "@/lib/orders";
 import { RETURN_LIMITS, needsRefundAccount, validateReturn, type ReturnInput, type ReturnRequest } from "@/lib/returns";
 import { normalizePkMobile } from "@/lib/validation";
@@ -8,9 +12,9 @@ import { normalizePkMobile } from "@/lib/validation";
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
 
 /**
- * Receives an exchange or refund request. The demo checks the request itself;
- * once orders are in the database (Phase 6) it also checks the order, mobile
- * number and 5-day window on the server before accepting.
+ * Receives an exchange or refund request. The request itself is always checked.
+ * With a database, the server also checks the order and mobile number, the
+ * 5-day window and that each item really is in that order, then saves it.
  */
 export async function POST(request: Request) {
   const body = (await readJson(request)) as Record<string, unknown> | null;
@@ -52,6 +56,34 @@ export async function POST(request: Request) {
     return json({ ok: false, error: "Please check the highlighted details.", fieldErrors }, 422);
   }
 
+  if (databaseEnabled()) {
+    try {
+      const order = await findOrder(orderId, phone);
+      if (!order) return json({ ok: false, error: "We couldn't find that order with this mobile number." }, 404);
+      const eligibility = returnEligibility(order);
+      if (!eligibility.eligible) {
+        const reason =
+          eligibility.reason === "expired"
+            ? "This order is past the exchange and refund window."
+            : "This order can't be exchanged or refunded yet.";
+        return json({ ok: false, error: reason }, 422);
+      }
+      for (const item of input.items) {
+        const line = order.lines.find((l) => l.slug === item.slug && describeVariant(l) === item.variant);
+        if (!line || item.qty > line.qty) return json({ ok: false, error: "An item in this request isn't in that order." }, 422);
+      }
+      // The payment method comes from the order, never from the request; check again with it.
+      input.payment = order.payment;
+      const recheck = validateReturn(input);
+      if (Object.keys(recheck).length > 0) {
+        return json({ ok: false, error: "Please check the highlighted details.", fieldErrors: recheck }, 422);
+      }
+    } catch (error) {
+      console.error("Return check failed", error);
+      return json({ ok: false, error: "We couldn't check your order just now. Please try again in a minute." }, 503);
+    }
+  }
+
   // Keep only what the chosen option needs.
   const keepAccount = needsRefundAccount(input);
   const saved: ReturnRequest = {
@@ -70,5 +102,18 @@ export async function POST(request: Request) {
     accountTitle: keepAccount ? input.accountTitle : "",
     accountNumber: keepAccount ? input.accountNumber : "",
   };
+  if (databaseEnabled()) {
+    try {
+      let stored = await insertReturn(saved);
+      for (let i = 0; !stored && i < 4; i++) {
+        saved.id = `RT-${randomInt(100000, 1000000)}`;
+        stored = await insertReturn(saved);
+      }
+      if (!stored) throw new Error("Could not assign a request number");
+    } catch (error) {
+      console.error("Saving return failed", error);
+      return json({ ok: false, error: "We couldn't save your request just now. Please try again in a minute." }, 503);
+    }
+  }
   return json({ ok: true, request: saved }, 201);
 }

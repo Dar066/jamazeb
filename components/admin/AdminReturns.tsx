@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { formatDate } from "@/lib/format";
-import { useHydrated } from "@/lib/local-store";
-import { useOrders } from "@/lib/order-store";
-import { setReturnStatus, useReturns } from "@/lib/return-store";
+import { useAdminActions, useAdminOrders, useAdminReady, useAdminReturns } from "./AdminData";
 import { stepTime, DELIVERED_STEP } from "@/lib/fulfilment";
 import type { ReturnStatus } from "@/lib/returns";
 import { btnSmall } from "../ui";
@@ -13,9 +11,10 @@ import { AdminHeading, EmptyNote, chip } from "./ui";
 const statusText: Record<ReturnStatus, string> = { received: "Waiting for review", approved: "Approved", rejected: "Rejected" };
 
 export function AdminReturns() {
-  const hydrated = useHydrated();
-  const returns = useReturns();
-  const orders = useOrders();
+  const hydrated = useAdminReady();
+  const returns = useAdminReturns();
+  const orders = useAdminOrders();
+  const actions = useAdminActions();
   const [view, setView] = useState<"open" | "all">("open");
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[70vh]" />;
@@ -90,10 +89,10 @@ export function AdminReturns() {
                 </dl>
                 {r.status === "received" ? (
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => setReturnStatus(r.id, "approved")} className={`${btnSmall} border-emerald bg-emerald text-white`}>
+                    <button type="button" onClick={() => void actions.decideReturn(r.id, "approved")} className={`${btnSmall} border-emerald bg-emerald text-white`}>
                       Approve
                     </button>
-                    <button type="button" onClick={() => setReturnStatus(r.id, "rejected")} className={btnSmall}>
+                    <button type="button" onClick={() => void actions.decideReturn(r.id, "rejected")} className={btnSmall}>
                       Reject
                     </button>
                   </div>

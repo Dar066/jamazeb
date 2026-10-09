@@ -1,7 +1,15 @@
 import { json, readJson } from "@/lib/api";
+import { databaseEnabled } from "@/lib/db/client";
+import { updateOrder } from "@/lib/db/orders";
+import { applyPaymentResult } from "@/lib/db/payment-status";
+import type { Order } from "@/lib/orders";
 import { mockPayFast } from "@/lib/payments/mock-payfast";
 
-/** Checks the signed payment result before the store shows an order as paid. */
+/**
+ * Checks the signed payment result before the store shows an order as paid.
+ * With a database, the order's status is updated there too, so the admin sees
+ * the payment even if the shopper closes the page.
+ */
 export async function POST(request: Request) {
   const body = (await readJson(request)) as Record<string, unknown> | null;
   if (!body) return json({ valid: false }, 400);
@@ -11,5 +19,18 @@ export async function POST(request: Request) {
     params[key] = typeof body[key] === "string" ? (body[key] as string) : undefined;
   }
   const result = mockPayFast.verifyResult(params);
-  return json(result, result.valid ? 200 : 400);
+  if (!result.valid) return json(result, 400);
+
+  let order: Order | null = null;
+  if (databaseEnabled()) {
+    try {
+      order = await updateOrder(result.orderId, (o) => applyPaymentResult(o, result.amount, result.outcome));
+    } catch (error) {
+      console.error("Recording payment failed", error);
+      return json({ ...result, valid: false, error: "unavailable" }, 503);
+    }
+    // A valid signature for an order the database doesn't hold, or a different amount, is not accepted.
+    if (!order || order.total !== result.amount) return json({ ...result, valid: false }, 400);
+  }
+  return json({ ...result, order });
 }

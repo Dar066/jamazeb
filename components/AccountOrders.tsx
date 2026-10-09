@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { currentUnitPrice, describeVariant } from "@/lib/cart-pricing";
 import { addToCart } from "@/lib/cart-store";
 import { getProduct } from "@/lib/catalog";
@@ -10,6 +11,7 @@ import { formatDate, formatPrice } from "@/lib/format";
 import { useHydrated } from "@/lib/local-store";
 import { useOrders } from "@/lib/order-store";
 import type { Order } from "@/lib/orders";
+import { syncLocalOrders } from "@/lib/order-sync";
 import { useReturns } from "@/lib/return-store";
 import { returnStatusLabels } from "@/lib/returns";
 import { site } from "@/lib/site";
@@ -20,6 +22,11 @@ export function AccountOrders() {
   const orders = useOrders().filter((o) => !o.sample);
   const returns = useReturns().filter((r) => !r.sample);
   const hydrated = useHydrated();
+
+  // Show the store's latest updates (status, return decisions) for these orders.
+  useEffect(() => {
+    void syncLocalOrders();
+  }, []);
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[50vh]" />;
 

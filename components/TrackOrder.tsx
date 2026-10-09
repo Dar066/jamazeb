@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { DELIVERED_STEP, advanceFulfilment, currentStep, displayStatus, isActiveOrder, matchOrder, returnEligibility } from "@/lib/fulfilment";
 import { formatDate, formatPrice } from "@/lib/format";
 import { useHydrated } from "@/lib/local-store";
 import { updateOrder, useOrders } from "@/lib/order-store";
 import type { Order } from "@/lib/orders";
+import { lookupOrder, syncLocalOrders } from "@/lib/order-sync";
 import { normalizePkMobile } from "@/lib/validation";
 import { openChat } from "./ChatWidget";
 import { ChatIcon } from "./icons";
@@ -17,8 +18,9 @@ import { btnPrimary, btnSecondary, fieldBorder, fieldInput, fieldLabel } from ".
 /**
  * Order lookup by order number + mobile number. Opening /track?order=JZ-… from
  * the account page shows that order straight away, since it was placed on this device.
+ * With a database, orders are looked up there, so they can be tracked from any device.
  */
-export function TrackOrder() {
+export function TrackOrder({ databaseMode }: { databaseMode: boolean }) {
   const params = useSearchParams();
   const linked = params.get("order")?.toUpperCase() ?? "";
   const orders = useOrders();
@@ -28,11 +30,17 @@ export function TrackOrder() {
   const [phone, setPhone] = useState("");
   const [foundId, setFoundId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // Fetch the latest status of orders already on this device.
+  useEffect(() => {
+    void syncLocalOrders();
+  }, []);
 
   const shownId = foundId ?? (linked && hydrated ? matchOrder(orders, linked, null)?.id : undefined);
   const order = shownId ? orders.find((o) => o.id === shownId) : undefined;
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const mobile = normalizePkMobile(phone);
     if (!/^JZ-?[0-9]{6}$/i.test(orderId.trim())) {
@@ -44,11 +52,14 @@ export function TrackOrder() {
       return;
     }
     const id = orderId.trim().toUpperCase().replace(/^JZ-?/, "JZ-");
-    const match = matchOrder(orders, id, mobile);
+    setBusy(true);
+    const fromServer = await lookupOrder(id, mobile);
+    setBusy(false);
+    const match = fromServer && fromServer !== "missing" ? fromServer : matchOrder(orders, id, mobile);
     if (!match) {
       setFoundId(null);
       setError(
-        "We couldn't find an order with that order number and mobile number on this device. Check both, or message us on WhatsApp and we'll look it up.",
+        `We couldn't find an order with that order number and mobile number${databaseMode ? "" : " on this device"}. Check both, or message us on WhatsApp and we'll look it up.`,
       );
       return;
     }
@@ -98,17 +109,17 @@ export function TrackOrder() {
             </p>
           )}
         </div>
-        <button type="submit" className={`${btnPrimary} self-start`}>
-          Track order
+        <button type="submit" disabled={busy} className={`${btnPrimary} self-start`}>
+          {busy ? "Looking up…" : "Track order"}
         </button>
       </form>
 
-      {order && <OrderStatusCard order={order} />}
+      {order && <OrderStatusCard order={order} databaseMode={databaseMode} />}
     </div>
   );
 }
 
-function OrderStatusCard({ order }: { order: Order }) {
+function OrderStatusCard({ order, databaseMode }: { order: Order; databaseMode: boolean }) {
   const active = isActiveOrder(order);
   const step = currentStep(order);
   const returns = returnEligibility(order);
@@ -180,7 +191,11 @@ function OrderStatusCard({ order }: { order: Order }) {
         </button>
       </div>
 
-      {active && (
+      {active && databaseMode && currentStep(order) < DELIVERED_STEP && (
+        <p className="text-sm text-muted">We update this page as your parcel moves. You&apos;ll also get updates on WhatsApp.</p>
+      )}
+
+      {active && !databaseMode && (
         <div className="border-t border-dashed border-line-strong pt-4">
           <p className="mb-3 text-sm text-muted">
             Demo only: on the live store, the courier and the admin dashboard update this status.

@@ -29,3 +29,19 @@ export const getOrders = store.get;
 export function replaceOrders(list: Order[]) {
   store.set(list);
 }
+
+/**
+ * Takes newer copies of orders from the database: known orders are replaced in
+ * place (keeping this device's payment link), new ones are added.
+ */
+export function mergeOrders(list: Order[]) {
+  if (list.length === 0) return;
+  const byId = new Map(list.map((o) => [o.id, o]));
+  const current = store.get();
+  const updated = current.map((o) => {
+    const fresh = byId.get(o.id);
+    return fresh ? { ...fresh, paymentUrl: o.paymentUrl ?? fresh.paymentUrl } : o;
+  });
+  const added = list.filter((o) => !current.some((c) => c.id === o.id));
+  store.set([...added, ...updated].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50));
+}

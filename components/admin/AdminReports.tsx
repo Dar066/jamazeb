@@ -4,16 +4,14 @@ import { useState } from "react";
 import { inRange, ordersCsv, rangeLabels, summarise, type Range } from "@/lib/admin/metrics";
 import { dayKey } from "@/lib/admin/metrics";
 import { formatPrice } from "@/lib/format";
-import { useHydrated } from "@/lib/local-store";
-import { useOrders } from "@/lib/order-store";
-import { useReturns } from "@/lib/return-store";
+import { useAdminOrders, useAdminReady, useAdminReturns } from "./AdminData";
 import { btnSmall } from "../ui";
 import { AdminHeading, EmptyNote, Kpi, Panel, chip } from "./ui";
 
 export function AdminReports() {
-  const hydrated = useHydrated();
-  const orders = useOrders();
-  const returns = useReturns();
+  const hydrated = useAdminReady();
+  const orders = useAdminOrders();
+  const returns = useAdminReturns();
   const [range, setRange] = useState<Range>("30d");
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[70vh]" />;

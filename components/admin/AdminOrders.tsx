@@ -2,15 +2,13 @@
 
 import { useSearchParams } from "next/navigation";
 import { Fragment, useState } from "react";
-import { adminStage, moveOn, nextAction, type AdminStage } from "@/lib/admin/status";
+import { adminStage, canCancel, nextAction, type AdminStage } from "@/lib/admin/status";
 import { describeVariant } from "@/lib/cart-pricing";
-import { currentStep } from "@/lib/fulfilment";
 import { formatDate, formatPrice } from "@/lib/format";
-import { useHydrated } from "@/lib/local-store";
-import { setOrderStatus, updateOrder, useOrders } from "@/lib/order-store";
 import type { Order } from "@/lib/orders";
 import { OrderTimeline } from "../OrderTimeline";
 import { btnSmall } from "../ui";
+import { useAdminActions, useAdminOrders, useAdminReady } from "./AdminData";
 import { SampleDataControls } from "./SampleDataControls";
 import { AdminHeading, EmptyNote, StageBadge, chip, searchInput, td, th } from "./ui";
 
@@ -29,8 +27,8 @@ export function AdminOrders() {
 }
 
 function OrdersView({ initialView, initialOpen }: { initialView: string; initialOpen: string | null }) {
-  const hydrated = useHydrated();
-  const orders = useOrders();
+  const hydrated = useAdminReady();
+  const orders = useAdminOrders();
   const [view, setView] = useState(VIEWS.some((v) => v.id === initialView) ? initialView : "all");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<string | null>(initialOpen);
@@ -108,6 +106,7 @@ function OrdersView({ initialView, initialOpen }: { initialView: string; initial
 }
 
 function OrderRow({ order: o, open, onToggle }: { order: Order; open: boolean; onToggle: () => void }) {
+  const actions = useAdminActions();
   const action = nextAction(o);
   return (
     <tr className={open ? "bg-ivory" : undefined}>
@@ -129,7 +128,7 @@ function OrderRow({ order: o, open, onToggle }: { order: Order; open: boolean; o
       </td>
       <td className={td}>
         {action ? (
-          <button type="button" onClick={() => updateOrder(o.id, moveOn)} className={btnSmall} aria-label={`${action}: ${o.id}`}>
+          <button type="button" onClick={() => void actions.advance(o.id)} className={btnSmall} aria-label={`${action}: ${o.id}`}>
             {action}
           </button>
         ) : (
@@ -143,9 +142,10 @@ function OrderRow({ order: o, open, onToggle }: { order: Order; open: boolean; o
 }
 
 function OrderDetails({ order: o }: { order: Order }) {
+  const actions = useAdminActions();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const stage = adminStage(o);
-  const canCancel = (stage === "to-confirm" || stage === "confirmed") && currentStep(o) < 2;
+  const cancellable = canCancel(o);
   const waNumber = `92${o.customer.phone.slice(1)}`;
   const waText = encodeURIComponent(`Assalam o Alaikum ${o.customer.name.split(" ")[0]}, this is Jamazeb about your order ${o.id}.`);
 
@@ -183,10 +183,10 @@ function OrderDetails({ order: o }: { order: Order }) {
           <a href={`https://wa.me/${waNumber}?text=${waText}`} target="_blank" rel="noopener noreferrer" className={btnSmall}>
             WhatsApp customer
           </a>
-          {canCancel &&
+          {cancellable &&
             (confirmCancel ? (
               <>
-                <button type="button" onClick={() => setOrderStatus(o.id, "cancelled")} className={`${btnSmall} border-rust text-rust`}>
+                <button type="button" onClick={() => void actions.cancel(o.id)} className={`${btnSmall} border-rust text-rust`}>
                   Yes, cancel order
                 </button>
                 <button type="button" onClick={() => setConfirmCancel(false)} className={btnSmall}>

@@ -51,3 +51,9 @@ export function moveOn(order: Order): Order {
 /** Orders still waiting for the store to do something. */
 export const needsConfirming = (o: Order) => adminStage(o) === "to-confirm";
 export const needsBooking = (o: Order) => adminStage(o) === "confirmed";
+
+/** Orders can be cancelled until they are booked with the courier. */
+export function canCancel(order: Order): boolean {
+  const stage = adminStage(order);
+  return stage === "to-confirm" || stage === "confirmed";
+}

@@ -21,3 +21,13 @@ export function replaceReturns(list: ReturnRequest[]) {
 }
 
 export const getReturns = store.get;
+
+/** Adds or replaces requests by id (used when the database sends newer copies). */
+export function upsertReturns(list: ReturnRequest[]) {
+  if (list.length === 0) return;
+  const byId = new Map(list.map((r) => [r.id, r]));
+  const current = store.get();
+  const updated = current.map((r) => byId.get(r.id) ?? r);
+  const added = list.filter((r) => !current.some((c) => c.id === r.id));
+  store.set([...added, ...updated]);
+}

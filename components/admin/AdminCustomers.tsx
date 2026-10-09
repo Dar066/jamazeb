@@ -3,13 +3,12 @@
 import { useState } from "react";
 import { customers } from "@/lib/admin/metrics";
 import { formatDate, formatPrice } from "@/lib/format";
-import { useHydrated } from "@/lib/local-store";
-import { useOrders } from "@/lib/order-store";
+import { useAdminOrders, useAdminReady } from "./AdminData";
 import { AdminHeading, EmptyNote, searchInput, td, th } from "./ui";
 
 export function AdminCustomers() {
-  const hydrated = useHydrated();
-  const orders = useOrders();
+  const hydrated = useAdminReady();
+  const orders = useAdminOrders();
   const [query, setQuery] = useState("");
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[70vh]" />;

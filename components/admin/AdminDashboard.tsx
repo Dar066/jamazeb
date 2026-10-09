@@ -5,17 +5,16 @@ import { LOW_STOCK, useAdminProducts } from "@/lib/admin/product-store";
 import { dailySales, summarise } from "@/lib/admin/metrics";
 import { adminStage, needsBooking, needsConfirming } from "@/lib/admin/status";
 import { formatDate, formatPrice } from "@/lib/format";
-import { useHydrated } from "@/lib/local-store";
-import { useOrders } from "@/lib/order-store";
-import { useReturns } from "@/lib/return-store";
+import { useAdminMode, useAdminOrders, useAdminReady, useAdminReturns } from "./AdminData";
 import { SalesChart } from "./SalesChart";
 import { SampleDataControls } from "./SampleDataControls";
 import { AdminHeading, EmptyNote, Kpi, Panel, StageBadge } from "./ui";
 
 export function AdminDashboard() {
-  const hydrated = useHydrated();
-  const orders = useOrders();
-  const returns = useReturns();
+  const hydrated = useAdminReady();
+  const mode = useAdminMode();
+  const orders = useAdminOrders();
+  const returns = useAdminReturns();
   const products = useAdminProducts();
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[70vh]" />;
@@ -99,8 +98,9 @@ export function AdminDashboard() {
         )}
       </Panel>
       <p className="text-[13px] text-muted">
-        Demo: the dashboard reads orders placed in this browser. With the database (Phase 6) it shows every customer&apos;s
-        orders.
+        {mode === "database"
+          ? "Live: orders from every customer and device, refreshed every 30 seconds."
+          : "Demo mode: the dashboard reads orders placed in this browser. Connect the database to see every customer's orders."}
       </p>
     </div>
   );

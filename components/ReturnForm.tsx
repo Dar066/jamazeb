@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { describeVariant } from "@/lib/cart-pricing";
 import { matchOrder, returnEligibility } from "@/lib/fulfilment";
 import { formatDate, formatPrice } from "@/lib/format";
 import { useHydrated } from "@/lib/local-store";
 import { useOrders } from "@/lib/order-store";
 import type { Order } from "@/lib/orders";
+import { lookupOrder, syncLocalOrders } from "@/lib/order-sync";
 import { saveReturn, useReturns } from "@/lib/return-store";
 import {
   REFUND_METHODS,
@@ -41,6 +42,12 @@ export function ReturnForm() {
   const [foundId, setFoundId] = useState<string | null>(null);
   const [findError, setFindError] = useState("");
   const [submitted, setSubmitted] = useState<ReturnRequest | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Fetch the latest status of orders already on this device (e.g. marked delivered by the store).
+  useEffect(() => {
+    void syncLocalOrders();
+  }, []);
 
   // Start fresh when the shopper comes back to this page after sending a request.
   useLayoutEffect(() => {
@@ -50,16 +57,20 @@ export function ReturnForm() {
   const shownId = foundId ?? (linked && hydrated ? matchOrder(orders, linked, null)?.id : undefined);
   const order = shownId ? orders.find((o) => o.id === shownId) : undefined;
 
-  function handleFind(e: FormEvent) {
+  async function handleFind(e: FormEvent) {
     e.preventDefault();
     const mobile = normalizePkMobile(phone);
     if (!/^JZ-?[0-9]{6}$/i.test(orderId.trim())) return setFindError("Enter your order number, like JZ-123456.");
     if (!mobile) return setFindError("Enter the mobile number you used at checkout, like 0300 1234567.");
-    const match = matchOrder(orders, orderId.trim().toUpperCase().replace(/^JZ-?/, "JZ-"), mobile);
+    const id = orderId.trim().toUpperCase().replace(/^JZ-?/, "JZ-");
+    setBusy(true);
+    const fromServer = await lookupOrder(id, mobile);
+    setBusy(false);
+    const match = fromServer && fromServer !== "missing" ? fromServer : matchOrder(orders, id, mobile);
     if (!match) {
       setFoundId(null);
       return setFindError(
-        "We couldn't find an order with that order number and mobile number on this device. Check both, or message us on WhatsApp.",
+        "We couldn't find an order with that order number and mobile number. Check both, or message us on WhatsApp.",
       );
     }
     setFindError("");
@@ -111,8 +122,8 @@ export function ReturnForm() {
             </p>
           )}
         </div>
-        <button type="submit" className={`${btnSecondary} mt-4`}>
-          Find order
+        <button type="submit" disabled={busy} className={`${btnSecondary} mt-4`}>
+          {busy ? "Looking up…" : "Find order"}
         </button>
       </form>
 

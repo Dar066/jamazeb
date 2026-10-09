@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { TrackOrder } from "@/components/TrackOrder";
 import { pageTitle } from "@/components/ui";
+import { databaseEnabled } from "@/lib/db/client";
 
 export const metadata: Metadata = {
   title: "Track your order",
@@ -17,7 +18,7 @@ export default function TrackPage() {
       <p className="mb-8 text-muted">Enter your order number and the mobile number you used at checkout.</p>
       <div className="min-h-[50vh]">
         <Suspense fallback={null}>
-          <TrackOrder />
+          <TrackOrder databaseMode={databaseEnabled()} />
         </Suspense>
       </div>
     </div>

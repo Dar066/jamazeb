@@ -1,18 +1,27 @@
 "use client";
 
-import { useOrders } from "@/lib/order-store";
-import { clearSampleData, loadSampleData } from "@/lib/admin/sample-data";
+import { useState } from "react";
 import { btnSmall } from "../ui";
+import { useAdminActions, useAdminOrders } from "./AdminData";
 
 export function SampleDataControls() {
-  const hasSample = useOrders().some((o) => o.sample);
+  const hasSample = useAdminOrders().some((o) => o.sample);
+  const actions = useAdminActions();
+  const [busy, setBusy] = useState(false);
+
+  async function run(action: () => Promise<void> | void) {
+    setBusy(true);
+    await action();
+    setBusy(false);
+  }
+
   return hasSample ? (
-    <button type="button" onClick={() => clearSampleData()} className={btnSmall}>
-      Clear sample data
+    <button type="button" disabled={busy} onClick={() => run(actions.clearSample)} className={`${btnSmall} disabled:cursor-wait disabled:opacity-60`}>
+      {busy ? "Clearing…" : "Clear sample data"}
     </button>
   ) : (
-    <button type="button" onClick={() => loadSampleData()} className={btnSmall}>
-      Load sample data
+    <button type="button" disabled={busy} onClick={() => run(actions.loadSample)} className={`${btnSmall} disabled:cursor-wait disabled:opacity-60`}>
+      {busy ? "Loading…" : "Load sample data"}
     </button>
   );
 }

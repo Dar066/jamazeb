@@ -4,7 +4,7 @@ A fast, minimal clothing store for Pakistani small businesses, built as a portfo
 project and a reusable starter for client stores.
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Vercel
-**Data:** mock catalogue for the demo (`lib/catalog.ts`), with Supabase and Shopify adapters planned.
+**Data:** orders and exchange/refund requests in PostgreSQL (Supabase) when `DATABASE_URL` is set; otherwise a browser-only demo mode. Catalogue in `lib/catalog.ts` (moves to the database in Phase 6B).
 **Payments & delivery:** mock PayFast and courier providers behind swappable interfaces (`lib/payments/`, `lib/shipping.ts`).
 
 ## Run it locally
@@ -25,6 +25,7 @@ npm run dev                  # http://localhost:3000
 | `NEXT_PUBLIC_SUPPORT_HOURS` | Customer care hours on Help > Contact, e.g. `Mon–Sat, 10am–7pm` |
 | `ADMIN_PASSWORD` | Admin dashboard password. Empty = demo mode (password `jamazeb-demo` shown on the login page) |
 | `ADMIN_SESSION_SECRET` | Server-only key that signs the admin sign-in cookie. Any long random string |
+| `DATABASE_URL` | Server-only PostgreSQL address (Supabase transaction pooler, `jamazeb_app` login). Empty = demo mode |
 | `MOCK_PAYMENT_SECRET` | Server-only key that signs demo payment links and results. Any long random string |
 
 ## Project structure
@@ -43,7 +44,7 @@ lib/            site settings, mock catalogue, stores, validation, shipping, pay
 3. **Cart & checkout:** cart, wishlist, checkout with cash on delivery and mock PayFast ✅
 4. **Customer care:** order tracking, exchange/refund form, help pages with FAQ schema, customer account ✅
 5. **Admin dashboard:** orders and delivery steps, products and stock, customers, exchange/refund approvals, reports with CSV ✅
-6. Supabase data, then Shopify adapter
+6. **Database:** 6A orders and returns in Supabase ✅ · 6B products in the database · then a Shopify adapter
 7. Performance and security pass, documentation and hand-over
 
 ## How checkout works
@@ -87,6 +88,33 @@ HTTP-only, SameSite=strict and expires after 8 hours.
 
 In the demo, the dashboard works on the orders saved in this browser, and product edits don't change the shop pages.
 Phase 6 moves orders, products and staff logins to the database.
+
+## Database (Phase 6A)
+
+With `DATABASE_URL` set, orders and exchange/refund requests are saved in PostgreSQL, so the admin sees every
+customer's orders and customers see the store's updates on any device. Without it, the store runs in demo mode.
+
+- **Server only.** The browser never talks to the database; only the store's API routes do, through `lib/db/`.
+- **Own schema.** Everything lives in the `jamazeb` schema, so it can share a Supabase project with other apps safely.
+- **Least privilege.** The store logs in as `jamazeb_app`, which can use only the jamazeb tables (no access to other
+  schemas, cannot create or drop tables). Supabase's public API keys have no access to the schema at all.
+- **Checked on the server:** order lookups need order number + mobile (and slow down failed tries); exchange/refund
+  requests are checked against the stored order, its delivery date and its items; payment results are written only
+  after the signature and amount match; admin routes check the sign-in cookie themselves.
+- **If the database is unreachable,** checkout says to try again rather than saving an order the admin can't see.
+
+### Setting it up on Supabase
+
+1. SQL Editor → run `db/jamazeb-schema.sql` (creates the `jamazeb` schema and tables; safe to re-run).
+2. Put a password into `db/jamazeb-app-user.sql` (letters and numbers), then run it (creates the `jamazeb_app` login).
+3. Project → **Connect** → **Transaction pooler**: copy the address, change the user to `jamazeb_app.<project-ref>`
+   and the password to the one from step 2. Add it in Vercel as `DATABASE_URL` and redeploy.
+
+### Moving to its own Supabase project later
+
+Run both SQL files in the new project, copy the rows (`pg_dump --schema=jamazeb --data-only` from the old project,
+then `psql` into the new one), switch `DATABASE_URL` in Vercel and redeploy. Then drop the `jamazeb` schema in the
+old project.
 
 ## Notes
 

@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { needsBooking, needsConfirming } from "@/lib/admin/status";
-import { useHydrated } from "@/lib/local-store";
-import { useOrders } from "@/lib/order-store";
-import { useReturns } from "@/lib/return-store";
+import { useAdminError, useAdminOrders, useAdminReady, useAdminReturns } from "./AdminData";
 import { site } from "@/lib/site";
 
 const menu = [
@@ -20,9 +18,10 @@ const menu = [
 /** Dark side menu with counts of things to do, plus the page heading bar. */
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const hydrated = useHydrated();
-  const orders = useOrders();
-  const returns = useReturns();
+  const hydrated = useAdminReady();
+  const orders = useAdminOrders();
+  const returns = useAdminReturns();
+  const dataError = useAdminError();
 
   const counts: Record<string, number> = hydrated
     ? {
@@ -95,7 +94,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             Sign out
           </button>
         </div>
-        <div className="mx-auto max-w-[1200px] px-6 py-8">{children}</div>
+        <div className="mx-auto max-w-[1200px] px-6 py-8">
+          {dataError === "unavailable" && (
+            <p role="alert" className="mb-6 bg-rust-soft p-4 text-[15px] text-rust">
+              Can&apos;t reach the database right now. Showing the last loaded data; changes may not save. Retrying every 30
+              seconds.
+            </p>
+          )}
+          {children}
+        </div>
       </div>
     </div>
   );
