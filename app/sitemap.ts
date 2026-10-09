@@ -1,11 +1,13 @@
 import type { MetadataRoute } from "next";
-import { categories, products } from "@/lib/catalog";
+import { categories } from "@/lib/catalog";
+import { getCatalog } from "@/lib/catalog-source";
 import { helpTopics } from "@/lib/help";
 import { site } from "@/lib/site";
 
 // Lists every public page so search engines can find them.
 // Only pages that already exist are listed; new sections are added as they go live.
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const products = await getCatalog();
   return [
     { url: `${site.url}/`, changeFrequency: "daily", priority: 1 },
     ...categories.map((c) => ({

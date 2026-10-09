@@ -4,6 +4,7 @@ import { NewsletterForm } from "@/components/NewsletterForm";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductImage } from "@/components/ProductImage";
 import { featuredCategories, getCategory, getNewArrivals } from "@/lib/catalog";
+import { getCatalog } from "@/lib/catalog-source";
 import { jsonLd } from "@/lib/jsonld";
 import { site } from "@/lib/site";
 
@@ -27,8 +28,8 @@ const promises = [
   },
 ];
 
-export default function HomePage() {
-  const newArrivals = getNewArrivals(4);
+export default async function HomePage() {
+  const newArrivals = getNewArrivals(4, await getCatalog());
   const tiles = featuredCategories.map((slug) => getCategory(slug)!);
 
   const structuredData = {

@@ -12,6 +12,7 @@ import { getProfile, saveAddress, saveProfile } from "@/lib/profile-store";
 import type { CheckoutRequest, CheckoutResponse, PaymentMethod } from "@/lib/orders";
 import { shipping } from "@/lib/shipping";
 import { LIMITS, validateCustomer, type CustomerErrors, type CustomerInput } from "@/lib/validation";
+import { useCatalog } from "./CatalogProvider";
 
 const FIELD_ORDER: (keyof CustomerInput)[] = ["phone", "email", "name", "city", "address", "notes"];
 
@@ -29,6 +30,7 @@ export function CheckoutForm() {
   const router = useRouter();
   const items = useCart();
   const hydrated = useHydrated();
+  const catalog = useCatalog();
   const formRef = useRef<HTMLFormElement>(null);
 
   // Filled in from the details saved on this device, if any (see Account > Profile).
@@ -82,7 +84,7 @@ export function CheckoutForm() {
     );
   }
 
-  const { subtotal, unavailable } = cartTotals(items);
+  const { subtotal, unavailable } = cartTotals(items, catalog);
   const delivery = customer.city ? shipping.getRate(customer.city) : null;
   const total = subtotal + (delivery ?? 0);
   const submitting = state === "submitting";
@@ -339,7 +341,7 @@ export function CheckoutForm() {
         </h2>
         <ul className="flex flex-col gap-4">
           {items.map((item) => {
-            const price = currentUnitPrice(item);
+            const price = currentUnitPrice(item, catalog);
             return (
               <li key={item.key} className="flex justify-between gap-4 text-[15px]">
                 <div className="min-w-0">

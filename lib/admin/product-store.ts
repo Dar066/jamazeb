@@ -1,48 +1,18 @@
 "use client";
 
-import { categories, products, type CategorySlug } from "../catalog";
+import { products } from "../catalog";
+import { toAdminProduct, type AdminProduct } from "./product-mapping";
 import { createLocalStore } from "../local-store";
 
-// Product list as the admin sees it: the catalogue plus edits made in the
-// dashboard. In the demo, edits are kept in this browser and don't change the
-// shop pages; in Phase 6 saving writes to the database and the shop updates.
+// Demo (browser) mode only: the product list as the admin sees it, the
+// catalogue plus edits kept in this browser. They don't change the shop pages.
+// In database mode products are saved through /api/admin/products instead.
 
-export type AdminProduct = {
-  slug: string;
-  name: string;
-  /** Main collection (not New In or Sale, which are automatic). */
-  category: CategorySlug;
-  /** Regular price. */
-  price: number;
-  /** Lower price while on sale; empty when not on sale. */
-  salePrice: number | null;
-  stock: number;
-  status: "active" | "draft";
-  colours: string[];
-  sizes: string[];
-  description: string;
-  tone: string;
-  /** Added in the dashboard rather than coming from the catalogue. */
-  added?: boolean;
-};
-
-export const editableCategories = categories.filter((c) => c.slug !== "new-in" && c.slug !== "sale");
-export const LOW_STOCK = 5;
+export type { AdminProduct } from "./product-mapping";
+export { LOW_STOCK, editableCategories, slugify } from "./product-mapping";
 
 function fromCatalogue(): AdminProduct[] {
-  return products.map((p) => ({
-    slug: p.slug,
-    name: p.name,
-    category: p.categories.find((c) => c !== "new-in" && c !== "sale") ?? "lawn",
-    price: p.compareAtPrice ?? p.price,
-    salePrice: p.compareAtPrice ? p.price : null,
-    stock: p.stock,
-    status: "active",
-    colours: p.colours.map((c) => c.name),
-    sizes: p.sizes ?? [],
-    description: p.description,
-    tone: p.tone,
-  }));
+  return products.map((p) => toAdminProduct(p));
 }
 
 type Saved = { edits: Record<string, AdminProduct>; added: AdminProduct[] };
@@ -80,13 +50,4 @@ export function useHasProductEdits(): boolean {
 
 export function resetProducts() {
   store.set({ edits: {}, added: [] });
-}
-
-/** URL-friendly name: "Printed Lawn Suit, Sage" → "printed-lawn-suit-sage". */
-export function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 60);
 }

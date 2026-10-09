@@ -12,7 +12,8 @@ type Day = { key: string; label: string; revenue: number; orders: number };
  */
 export function SalesChart({ days }: { days: Day[] }) {
   const [active, setActive] = useState<number | null>(null);
-  const max = Math.max(...days.map((d) => d.revenue), 1);
+  // At least Rs 1,000 so an empty week still has a sensible scale.
+  const max = Math.max(...days.map((d) => d.revenue), 1000);
   const peak = days.reduce((best, d, i) => (d.revenue > days[best].revenue ? i : best), 0);
   // Round the top gridline up to a clean number.
   const step = Math.pow(10, Math.floor(Math.log10(max)));
@@ -25,7 +26,7 @@ export function SalesChart({ days }: { days: Day[] }) {
         {[0, 0.5, 1].map((f) => (
           <div key={f} className="absolute right-0 left-14 border-t border-line" style={{ bottom: 28 + f * height }}>
             <span className="absolute -top-2.5 -left-14 w-12 text-right text-[11px] text-muted">
-              {f === 0 ? "0" : `${Math.round((top * f) / 1000)}k`}
+              {axisLabel(top * f)}
             </span>
           </div>
         ))}
@@ -84,4 +85,12 @@ export function SalesChart({ days }: { days: Day[] }) {
       </div>
     </figure>
   );
+}
+
+/** 0 · 500 · 1k · 2.5k · 40k */
+function axisLabel(value: number): string {
+  if (value === 0) return "0";
+  if (value < 1000) return String(Math.round(value));
+  const k = value / 1000;
+  return `${Number.isInteger(k) ? k : k.toFixed(1)}k`;
 }

@@ -4,7 +4,7 @@ A fast, minimal clothing store for Pakistani small businesses, built as a portfo
 project and a reusable starter for client stores.
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Vercel
-**Data:** orders and exchange/refund requests in PostgreSQL (Supabase) when `DATABASE_URL` is set; otherwise a browser-only demo mode. Catalogue in `lib/catalog.ts` (moves to the database in Phase 6B).
+**Data:** products, orders and exchange/refund requests in PostgreSQL (Supabase) when `DATABASE_URL` is set; otherwise a browser-only demo mode with the built-in catalogue in `lib/catalog.ts`.
 **Payments & delivery:** mock PayFast and courier providers behind swappable interfaces (`lib/payments/`, `lib/shipping.ts`).
 
 ## Run it locally
@@ -44,7 +44,7 @@ lib/            site settings, mock catalogue, stores, validation, shipping, pay
 3. **Cart & checkout:** cart, wishlist, checkout with cash on delivery and mock PayFast ✅
 4. **Customer care:** order tracking, exchange/refund form, help pages with FAQ schema, customer account ✅
 5. **Admin dashboard:** orders and delivery steps, products and stock, customers, exchange/refund approvals, reports with CSV ✅
-6. **Database:** 6A orders and returns in Supabase ✅ · 6B products in the database · then a Shopify adapter
+6. **Database:** 6A orders and returns in Supabase ✅ · 6B products and stock in the database ✅ · then a Shopify adapter
 7. Performance and security pass, documentation and hand-over
 
 ## How checkout works
@@ -86,12 +86,12 @@ HTTP-only, SameSite=strict and expires after 8 hours.
 - **Reports:** last 7 / 30 days / all time, payment split, top products, orders by city, CSV download.
 - **Load sample data** fills the dashboard with realistic demo orders; **Clear sample data** removes them.
 
-In the demo, the dashboard works on the orders saved in this browser, and product edits don't change the shop pages.
-Phase 6 moves orders, products and staff logins to the database.
+In demo mode, the dashboard works on the orders saved in this browser, and product edits don't change the shop pages.
+With the database connected, product edits update the shop for everyone.
 
-## Database (Phase 6A)
+## Database (Phase 6)
 
-With `DATABASE_URL` set, orders and exchange/refund requests are saved in PostgreSQL, so the admin sees every
+With `DATABASE_URL` set, products, orders and exchange/refund requests are saved in PostgreSQL, so the admin sees every
 customer's orders and customers see the store's updates on any device. Without it, the store runs in demo mode.
 
 - **Server only.** The browser never talks to the database; only the store's API routes do, through `lib/db/`.
@@ -101,18 +101,32 @@ customer's orders and customers see the store's updates on any device. Without i
 - **Checked on the server:** order lookups need order number + mobile (and slow down failed tries); exchange/refund
   requests are checked against the stored order, its delivery date and its items; payment results are written only
   after the signature and amount match; admin routes check the sign-in cookie themselves.
-- **If the database is unreachable,** checkout says to try again rather than saving an order the admin can't see.
+- **If the database is unreachable,** checkout says to try again rather than saving an order the admin can't see,
+  and the shop pages fall back to the built-in catalogue.
+
+### Products and stock (Phase 6B)
+
+- On first use, the `products` table is filled from the built-in catalogue. After that, the database is the source.
+- Shop pages are cached (`lib/catalog-source.ts`, tag `catalog`). An admin save refreshes them straight away;
+  orders refresh them in the background. Checkout always reads prices and stock fresh from the database.
+- **Stock goes down** when a cash-on-delivery order is placed, or when an online payment is confirmed.
+- **No overselling:** stock is taken in the same transaction as the order, only if enough is left. Otherwise
+  checkout says how many are left. Stock can't go below zero (database check).
+- **Stock comes back** when the admin cancels an order that had taken stock.
+- **Drafts** are hidden from the shop (their page returns 404) but stay in the admin.
 
 ### Setting it up on Supabase
 
 1. SQL Editor → run `db/jamazeb-schema.sql` (creates the `jamazeb` schema and tables; safe to re-run).
 2. Put a password into `db/jamazeb-app-user.sql` (letters and numbers), then run it (creates the `jamazeb_app` login).
+   Undo the password edit afterwards; never commit it.
 3. Project → **Connect** → **Transaction pooler**: copy the address, change the user to `jamazeb_app.<project-ref>`
-   and the password to the one from step 2. Add it in Vercel as `DATABASE_URL` and redeploy.
+   and the password to the one from step 2. Add it in Vercel as `DATABASE_URL` (Sensitive) and redeploy.
+4. Run `db/jamazeb-products.sql` (products table; needs the login from step 2; safe to re-run), then redeploy.
 
 ### Moving to its own Supabase project later
 
-Run both SQL files in the new project, copy the rows (`pg_dump --schema=jamazeb --data-only` from the old project,
+Run the three SQL files in the new project (in the order above), copy the rows (`pg_dump --schema=jamazeb --data-only` from the old project,
 then `psql` into the new one), switch `DATABASE_URL` in Vercel and redeploy. Then drop the `jamazeb` schema in the
 old project.
 

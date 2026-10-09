@@ -53,6 +53,8 @@ export type Order = {
   fulfilment?: Fulfilment;
   /** Demo data added from the admin dashboard; removed with "Clear sample data". */
   sample?: boolean;
+  /** True once this order's items were taken from stock (database mode), so a cancel can return them. */
+  stockTaken?: boolean;
 };
 
 export type Fulfilment = {

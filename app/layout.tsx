@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
+import { CatalogProvider } from "@/components/CatalogProvider";
 import { ChatWidget } from "@/components/ChatWidget";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
 import { StoreOnly } from "@/components/StoreOnly";
+import { getCatalog } from "@/lib/catalog-source";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -47,7 +49,8 @@ export const viewport: Viewport = {
   themeColor: "#faf8f3",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const catalog = await getCatalog();
   return (
     <html lang="en" className={`${jost.variable} ${cormorant.variable}`}>
       <body className="min-h-screen antialiased">
@@ -57,15 +60,17 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         >
           Skip to content
         </a>
-        <StoreOnly>
-          <AnnouncementBar />
-          <Header />
-        </StoreOnly>
-        <main id="main">{children}</main>
-        <StoreOnly>
-          <Footer />
-          <ChatWidget />
-        </StoreOnly>
+        <CatalogProvider products={catalog}>
+          <StoreOnly>
+            <AnnouncementBar />
+            <Header />
+          </StoreOnly>
+          <main id="main">{children}</main>
+          <StoreOnly>
+            <Footer />
+            <ChatWidget />
+          </StoreOnly>
+        </CatalogProvider>
       </body>
     </html>
   );

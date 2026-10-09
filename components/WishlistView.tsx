@@ -4,15 +4,17 @@ import Link from "next/link";
 import { getProduct, type Product } from "@/lib/catalog";
 import { useHydrated } from "@/lib/local-store";
 import { useWishlist } from "@/lib/wishlist-store";
+import { useCatalog } from "./CatalogProvider";
 import { ProductCard } from "./ProductCard";
 
 export function WishlistView() {
   const slugs = useWishlist();
   const hydrated = useHydrated();
+  const catalog = useCatalog();
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[50vh]" />;
 
-  const products = slugs.map(getProduct).filter((p): p is Product => Boolean(p));
+  const products = slugs.map((s) => getProduct(s, catalog)).filter((p): p is Product => Boolean(p));
 
   if (products.length === 0) {
     return (

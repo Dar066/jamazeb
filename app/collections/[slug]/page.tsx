@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ProductGrid } from "@/components/ProductGrid";
 import { categories, getCategory, getProductsInCategory } from "@/lib/catalog";
+import { getCatalog } from "@/lib/catalog-source";
 import { jsonLd } from "@/lib/jsonld";
 import { site } from "@/lib/site";
 
@@ -35,7 +36,7 @@ export default async function CollectionPage({ params }: PageProps<"/collections
   const category = getCategory(slug);
   if (!category) notFound();
 
-  const products = getProductsInCategory(category.slug);
+  const products = getProductsInCategory(category.slug, await getCatalog());
 
   // Lets search engines understand the page as a list of products.
   const structuredData = {

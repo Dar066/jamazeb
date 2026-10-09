@@ -12,6 +12,7 @@ import { useHydrated } from "@/lib/local-store";
 import { useOrders } from "@/lib/order-store";
 import type { Order } from "@/lib/orders";
 import { syncLocalOrders } from "@/lib/order-sync";
+import { useCatalog } from "./CatalogProvider";
 import { useReturns } from "@/lib/return-store";
 import { returnStatusLabels } from "@/lib/returns";
 import { site } from "@/lib/site";
@@ -82,6 +83,7 @@ export function AccountOrders() {
 
 function OrderCard({ order }: { order: Order }) {
   const router = useRouter();
+  const catalog = useCatalog();
   const active = isActiveOrder(order);
   const delivered = currentStep(order) >= DELIVERED_STEP;
   const returns = returnEligibility(order);
@@ -99,8 +101,8 @@ function OrderCard({ order }: { order: Order }) {
 
   function buyAgain() {
     for (const l of order.lines) {
-      const product = getProduct(l.slug);
-      const price = currentUnitPrice({ slug: l.slug, option: l.option, qty: l.qty, price: l.unitPrice });
+      const product = getProduct(l.slug, catalog);
+      const price = currentUnitPrice({ slug: l.slug, option: l.option, qty: l.qty, price: l.unitPrice }, catalog);
       if (!product || price === null) continue;
       addToCart({ slug: l.slug, name: l.name, type: product.type, tone: l.tone, price, qty: l.qty, colour: l.colour, option: l.option, size: l.size });
     }

@@ -5,22 +5,24 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductGallery } from "@/components/ProductGallery";
 import { ProductPurchase } from "@/components/ProductPurchase";
-import { getCategory, getProduct, getRelatedProducts, products, sizeChart } from "@/lib/catalog";
+import { getCategory, getProduct, getRelatedProducts, sizeChart } from "@/lib/catalog";
+import { getCatalog } from "@/lib/catalog-source";
 import { jsonLd } from "@/lib/jsonld";
 import { site } from "@/lib/site";
 
-// Every product page is built ahead of time as a static page.
+// Every product page is built ahead of time as a static page. Products added
+// later in the admin are built on their first visit, then served statically too.
 // "navigation" means the whole page is produced before anything is sent, so an
 // unknown address returns a real 404 status instead of a 200 "not found" page.
 export const ensureStatic = "navigation";
 
-export function generateStaticParams() {
-  return products.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  return (await getCatalog()).map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/products/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProduct(slug);
+  const product = getProduct(slug, await getCatalog());
   if (!product) return {};
   const path = `/products/${product.slug}`;
   const image = product.images?.[0];
@@ -52,12 +54,13 @@ function Sign() {
 
 export default async function ProductPage({ params }: PageProps<"/products/[slug]">) {
   const { slug } = await params;
-  const product = getProduct(slug);
+  const catalog = await getCatalog();
+  const product = getProduct(slug, catalog);
   if (!product) notFound();
 
   // Breadcrumb goes through the product's most specific collection.
   const primary = getCategory(product.categories.find((c) => c !== "new-in" && c !== "sale") ?? product.categories[0])!;
-  const related = getRelatedProducts(product, 4);
+  const related = getRelatedProducts(product, 4, catalog);
   const hasSizes = Boolean(product.sizes || product.stitchable);
   const url = `${site.url}/products/${product.slug}`;
 

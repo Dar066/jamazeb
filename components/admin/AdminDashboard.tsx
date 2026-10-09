@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { LOW_STOCK, useAdminProducts } from "@/lib/admin/product-store";
+import { LOW_STOCK } from "@/lib/admin/product-mapping";
 import { dailySales, summarise } from "@/lib/admin/metrics";
 import { adminStage, needsBooking, needsConfirming } from "@/lib/admin/status";
 import { formatDate, formatPrice } from "@/lib/format";
-import { useAdminMode, useAdminOrders, useAdminReady, useAdminReturns } from "./AdminData";
+import { useAdminMode, useAdminOrders, useAdminProductList, useAdminReady, useAdminReturns } from "./AdminData";
 import { SalesChart } from "./SalesChart";
 import { SampleDataControls } from "./SampleDataControls";
 import { AdminHeading, EmptyNote, Kpi, Panel, StageBadge } from "./ui";
@@ -15,7 +15,7 @@ export function AdminDashboard() {
   const mode = useAdminMode();
   const orders = useAdminOrders();
   const returns = useAdminReturns();
-  const products = useAdminProducts();
+  const products = useAdminProductList();
 
   if (!hydrated) return <div aria-busy="true" className="min-h-[70vh]" />;
 

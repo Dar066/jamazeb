@@ -2,20 +2,12 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import {
-  LOW_STOCK,
-  editableCategories,
-  resetProducts,
-  saveProduct,
-  slugify,
-  useAdminProducts,
-  useHasProductEdits,
-  type AdminProduct,
-} from "@/lib/admin/product-store";
+import { LOW_STOCK, editableCategories, slugify, type AdminProduct } from "@/lib/admin/product-mapping";
+import { resetProducts, useHasProductEdits } from "@/lib/admin/product-store";
 import { getCategory, type CategorySlug } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
-import { useHydrated } from "@/lib/local-store";
 import { btnPrimary, btnSecondary, btnSmall, fieldInput, fieldLabel } from "../ui";
+import { useAdminActions, useAdminMode, useAdminProductList, useAdminReady } from "./AdminData";
 import { AdminHeading, EmptyNote, chip, searchInput, td, th } from "./ui";
 
 type Draft = {
@@ -58,9 +50,13 @@ export function AdminProducts() {
 }
 
 function ProductsView({ initialLow }: { initialLow: boolean }) {
-  const hydrated = useHydrated();
-  const products = useAdminProducts();
-  const edited = useHasProductEdits();
+  const hydrated = useAdminReady();
+  const mode = useAdminMode();
+  const actions = useAdminActions();
+  const products = useAdminProductList();
+  const edited = useHasProductEdits() && mode === "browser";
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [lowOnly, setLowOnly] = useState(initialLow);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -74,12 +70,13 @@ function ProductsView({ initialLow }: { initialLow: boolean }) {
 
   function open(d: Draft) {
     setErrors({});
+    setFormError("");
     setSaved("");
     setDraft(d);
     requestAnimationFrame(() => document.getElementById("product-form")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
-  function handleSave(e: FormEvent) {
+  async function handleSave(e: FormEvent) {
     e.preventDefault();
     if (!draft) return;
     const found: Errors = {};
@@ -96,21 +93,33 @@ function ProductsView({ initialLow }: { initialLow: boolean }) {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    saveProduct({
-      slug,
-      added: draft.added,
-      name: draft.name.trim(),
-      category: draft.category,
-      price,
-      salePrice: sale,
-      stock,
-      status: draft.status,
-      colours: list(draft.colours),
-      sizes: list(draft.sizes),
-      description: draft.description.trim(),
-      tone: draft.tone,
-    });
-    setSaved(draft.slug ? `Saved changes to ${draft.name.trim()}.` : `Added ${draft.name.trim()}.`);
+    setSaving(true);
+    setFormError("");
+    const result = await actions.saveProduct(
+      {
+        slug,
+        added: draft.added,
+        name: draft.name.trim(),
+        category: draft.category,
+        price,
+        salePrice: sale,
+        stock,
+        status: draft.status,
+        colours: list(draft.colours),
+        sizes: list(draft.sizes),
+        description: draft.description.trim(),
+        tone: draft.tone,
+      },
+      !draft.slug,
+    );
+    setSaving(false);
+    if (!result.ok) {
+      setFormError(result.error);
+      if (result.fieldErrors) setErrors(result.fieldErrors as Errors);
+      return;
+    }
+    const live = mode === "database" ? " The shop shows it on the next page load." : "";
+    setSaved((draft.slug ? `Saved changes to ${draft.name.trim()}.` : `Added ${draft.name.trim()}.`) + live);
     setDraft(null);
   }
 
@@ -266,12 +275,20 @@ function ProductsView({ initialLow }: { initialLow: boolean }) {
             <textarea id="pf-description" rows={3} maxLength={600} value={draft.description} onChange={set("description")} className={`${fieldInput} border-line-strong py-3`} />
           </div>
           <p className="text-[13px] text-muted">
-            Photos, SEO title, web address and product schema are generated from the name when the store is connected to its
-            database (Phase 6). In this demo, changes are saved in this browser and don&apos;t change the shop pages.
+            {mode === "database"
+              ? "Saving updates the shop: price, stock, colours, sizes and description. The web address, SEO title and product schema come from the name. Draft products are hidden from the shop."
+              : "Demo mode: changes are saved in this browser and don't change the shop pages. Connect the database to publish them."}
           </p>
+          <div aria-live="assertive">
+            {formError && (
+              <p role="alert" className="bg-rust-soft p-3 text-sm text-rust">
+                {formError}
+              </p>
+            )}
+          </div>
           <div className="flex flex-wrap gap-3">
-            <button type="submit" className={btnPrimary}>
-              {draft.slug ? "Save changes" : "Add product"}
+            <button type="submit" disabled={saving} className={btnPrimary}>
+              {saving ? "Saving…" : draft.slug ? "Save changes" : "Add product"}
             </button>
             <button type="button" onClick={() => setDraft(null)} className={btnSecondary}>
               Cancel

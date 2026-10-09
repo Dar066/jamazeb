@@ -5,6 +5,7 @@ import { cartTotals, currentUnitPrice, describeVariant } from "@/lib/cart-pricin
 import { removeFromCart, setQuantity, useCart } from "@/lib/cart-store";
 import { formatPrice } from "@/lib/format";
 import { useHydrated } from "@/lib/local-store";
+import { useCatalog } from "./CatalogProvider";
 import { ProductImage } from "./ProductImage";
 import { QuantityStepper } from "./QuantityStepper";
 
@@ -14,6 +15,7 @@ const button =
 export function CartView() {
   const items = useCart();
   const hydrated = useHydrated();
+  const catalog = useCatalog();
 
   // The cart lives in the browser, so the server renders a placeholder of similar size.
   if (!hydrated) return <div aria-busy="true" className="min-h-[50vh]" />;
@@ -29,14 +31,14 @@ export function CartView() {
     );
   }
 
-  const { subtotal, count, unavailable } = cartTotals(items);
+  const { subtotal, count, unavailable } = cartTotals(items, catalog);
 
   return (
     <div className="flex flex-wrap items-start gap-12">
       <section aria-label="Items in your cart" className="min-w-0 flex-[1_1_560px]">
         <ul className="border-t border-line">
           {items.map((item) => {
-            const price = currentUnitPrice(item);
+            const price = currentUnitPrice(item, catalog);
             const href = `/products/${item.slug}`;
             return (
               <li key={item.key} className="flex gap-4 border-b border-line py-6 sm:gap-6">

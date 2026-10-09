@@ -3,7 +3,7 @@
 // never from the browser, so an edited request can't change what is charged.
 
 import { randomInt } from "node:crypto";
-import { STITCHED_SIZES, STITCHING_PRICE, getProduct } from "./catalog";
+import { STITCHED_SIZES, STITCHING_PRICE, getProduct, products as builtIn, type Product } from "./catalog";
 import { MAX_LINES, MAX_QTY, type CheckoutRequest, type Order, type OrderLine } from "./orders";
 import { shipping } from "./shipping";
 import { normalizePkMobile, validateCustomer, type CustomerInput } from "./validation";
@@ -19,7 +19,8 @@ export function newOrderId(): string {
   return `JZ-${randomInt(100000, 1000000)}`;
 }
 
-export function buildOrder(body: unknown): BuildResult {
+/** `catalog` = the products as they are right now (database or built-in). */
+export function buildOrder(body: unknown, catalog: Product[] = builtIn): BuildResult {
   if (!body || typeof body !== "object") return { ok: false, error: "Invalid request." };
   const req = body as Partial<CheckoutRequest>;
 
@@ -52,7 +53,7 @@ export function buildOrder(body: unknown): BuildResult {
   const qtyBySlug = new Map<string, number>();
 
   for (const item of items) {
-    const product = getProduct(str(item?.slug, 100));
+    const product = getProduct(str(item?.slug, 100), catalog);
     if (!product) return { ok: false, error: "An item in your cart is no longer available. Please remove it." };
 
     const colour = str(item.colour, 60);

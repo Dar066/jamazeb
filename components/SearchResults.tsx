@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { searchProducts } from "@/lib/catalog";
+import { useCatalog } from "./CatalogProvider";
 import { ProductGrid } from "./ProductGrid";
 
 const suggestions = ["Lawn", "Kurta", "Dupatta", "Unstitched", "Sage"];
@@ -14,7 +15,8 @@ export function SearchResults() {
   const router = useRouter();
   const query = (params.get("q") ?? "").trim().slice(0, 80);
   const [draft, setDraft] = useState(query);
-  const results = query ? searchProducts(query) : [];
+  const catalog = useCatalog();
+  const results = query ? searchProducts(query, catalog) : [];
 
   return (
     <>

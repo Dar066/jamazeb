@@ -1,5 +1,7 @@
-// Mock catalogue for the demo build. Later this file is replaced by a
-// CommerceProvider (Supabase or Shopify) that returns the same shapes.
+// Product shapes, the built-in catalogue and helpers to search it.
+// The built-in list is the demo catalogue and the seed for the database; with a
+// database, the live list comes from lib/catalog-source.ts (server) and
+// useCatalog() (browser), and is passed to these helpers as `list`.
 
 export type CategorySlug = "new-in" | "lawn" | "unstitched" | "ready-to-wear" | "dupattas" | "sale";
 
@@ -209,8 +211,8 @@ export const sizeChart = [
   { size: "XL", chest: 22.5, length: 42 },
 ];
 
-export function getProduct(slug: string): Product | undefined {
-  return products.find((p) => p.slug === slug);
+export function getProduct(slug: string, list: Product[] = products): Product | undefined {
+  return list.find((p) => p.slug === slug);
 }
 
 export function isOnSale(product: Product): boolean {
@@ -218,17 +220,17 @@ export function isOnSale(product: Product): boolean {
 }
 
 /** Up to `limit` other products, preferring ones that share a category. */
-export function getRelatedProducts(product: Product, limit = 4): Product[] {
-  const others = products.filter((p) => p.slug !== product.slug);
+export function getRelatedProducts(product: Product, limit = 4, list: Product[] = products): Product[] {
+  const others = list.filter((p) => p.slug !== product.slug);
   const shared = (p: Product) => p.categories.filter((c) => product.categories.includes(c)).length;
   return [...others].sort((a, b) => shared(b) - shared(a) || a.newness - b.newness).slice(0, limit);
 }
 
 /** Case-insensitive search across name, type, fabric and colours. */
-export function searchProducts(query: string): Product[] {
+export function searchProducts(query: string, list: Product[] = products): Product[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
-  return products
+  return list
     .filter((p) => {
       const text = [p.name, p.type, p.fabric, ...p.colours.map((c) => c.name)].join(" ").toLowerCase();
       return words.every((w) => text.includes(w));
@@ -240,12 +242,14 @@ export function getCategory(slug: string): Category | undefined {
   return categories.find((c) => c.slug === slug);
 }
 
-export function getProductsInCategory(slug: CategorySlug): Product[] {
-  return products.filter((p) => p.categories.includes(slug)).sort((a, b) => a.newness - b.newness);
+/** Products in a collection, newest first. "Sale" is every product with a sale price. */
+export function getProductsInCategory(slug: CategorySlug, list: Product[] = products): Product[] {
+  const inCategory = slug === "sale" ? (p: Product) => isOnSale(p) : (p: Product) => p.categories.includes(slug);
+  return list.filter(inCategory).sort((a, b) => a.newness - b.newness);
 }
 
-export function getNewArrivals(limit = 4): Product[] {
-  return getProductsInCategory("new-in").slice(0, limit);
+export function getNewArrivals(limit = 4, list: Product[] = products): Product[] {
+  return getProductsInCategory("new-in", list).slice(0, limit);
 }
 
 /** Categories shown as tiles on the home page. */

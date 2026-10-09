@@ -4,6 +4,7 @@
 import type { Order } from "../orders";
 import type { ReturnRequest } from "../returns";
 import { db } from "./client";
+import { takeStock } from "./products";
 
 type Row = { data: Order };
 type ReturnRow = { data: ReturnRequest };
@@ -14,15 +15,24 @@ function sql() {
   return s;
 }
 
-/** Saves a new order. Returns false if the order number is already taken. */
-export async function insertOrder(order: Order): Promise<boolean> {
-  const rows = await sql()`
-    insert into jamazeb.orders (id, created_at, status, payment, phone, sample, data)
-    values (${order.id}, ${order.createdAt}, ${order.status}, ${order.payment}, ${order.customer.phone},
-            ${order.sample === true}, ${sql().json(order as never)})
-    on conflict (id) do nothing
-    returning id`;
-  return rows.length === 1;
+/**
+ * Saves a new order. With `reserveStock`, the items are taken from stock in the
+ * same transaction, so the order and the stock change happen together or not at
+ * all (throws OutOfStock if an item ran out). Returns false if the order number
+ * is already taken.
+ */
+export async function insertOrder(order: Order, reserveStock = false): Promise<boolean> {
+  return sql().begin(async (tx) => {
+    const rows = await tx`
+      insert into jamazeb.orders (id, created_at, status, payment, phone, sample, data)
+      values (${order.id}, ${order.createdAt}, ${order.status}, ${order.payment}, ${order.customer.phone},
+              ${order.sample === true}, ${tx.json(order as never)})
+      on conflict (id) do nothing
+      returning id`;
+    if (rows.length === 0) return false;
+    if (reserveStock) await takeStock(tx, order.lines);
+    return true;
+  }) as Promise<boolean>;
 }
 
 export async function getOrder(id: string): Promise<Order | null> {
