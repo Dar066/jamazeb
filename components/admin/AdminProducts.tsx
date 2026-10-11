@@ -7,7 +7,7 @@ import { resetProducts, useHasProductEdits } from "@/lib/admin/product-store";
 import { getCategory, type CategorySlug } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
 import { btnPrimary, btnSecondary, btnSmall, fieldInput, fieldLabel } from "../ui";
-import { useAdminActions, useAdminMode, useAdminProductList, useAdminReady } from "./AdminData";
+import { useAdminActions, useAdminMode, useAdminProductList, useAdminReady, useShopifyAdminUrl } from "./AdminData";
 import { AdminHeading, EmptyNote, chip, searchInput, td, th } from "./ui";
 
 type Draft = {
@@ -52,6 +52,7 @@ export function AdminProducts() {
 function ProductsView({ initialLow }: { initialLow: boolean }) {
   const hydrated = useAdminReady();
   const mode = useAdminMode();
+  const shopifyUrl = useShopifyAdminUrl();
   const actions = useAdminActions();
   const products = useAdminProductList();
   const edited = useHasProductEdits() && mode === "browser";
@@ -134,10 +135,24 @@ function ProductsView({ initialLow }: { initialLow: boolean }) {
   return (
     <div className="flex flex-col gap-5">
       <AdminHeading title="Products">
-        <button type="button" onClick={() => open(blank)} className={btnSmall}>
-          + Add product
-        </button>
+        {shopifyUrl ? (
+          <a href={shopifyUrl} target="_blank" rel="noopener noreferrer" className={btnSmall}>
+            Manage in Shopify <span aria-hidden="true">↗</span>
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        ) : (
+          <button type="button" onClick={() => open(blank)} className={btnSmall}>
+            + Add product
+          </button>
+        )}
       </AdminHeading>
+
+      {shopifyUrl && (
+        <p className="border border-line bg-white p-4 text-[15px]">
+          Products, prices and stock come from Shopify, so they are changed there. The shop picks up changes within the
+          hour, or straight away when the Shopify webhook is set up. Orders placed here still appear in this dashboard.
+        </p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div role="group" aria-label="Show products" className="flex gap-2">
@@ -171,7 +186,7 @@ function ProductsView({ initialLow }: { initialLow: boolean }) {
                 <th scope="col" className={`${th} text-right`}>Price</th>
                 <th scope="col" className={`${th} text-right`}>Stock</th>
                 <th scope="col" className={th}>Status</th>
-                <th scope="col" className={th}><span className="sr-only">Edit</span></th>
+                {!shopifyUrl && <th scope="col" className={th}><span className="sr-only">Edit</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -205,11 +220,13 @@ function ProductsView({ initialLow }: { initialLow: boolean }) {
                     {p.stock <= LOW_STOCK && <span className="block text-[13px] text-rust">{p.stock === 0 ? "Sold out" : "Low"}</span>}
                   </td>
                   <td className={td}>{p.status === "active" ? "Active" : "Draft"}</td>
-                  <td className={td}>
-                    <button type="button" onClick={() => open(toDraft(p))} className={btnSmall} aria-label={`Edit ${p.name}`}>
-                      Edit
-                    </button>
-                  </td>
+                  {!shopifyUrl && (
+                    <td className={td}>
+                      <button type="button" onClick={() => open(toDraft(p))} className={btnSmall} aria-label={`Edit ${p.name}`}>
+                        Edit
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -26,7 +26,8 @@ export async function POST(request: Request) {
   if (!/^JZ-[0-9]{6}$/.test(orderId) || !phone) return json({ ok: false, error: "Order not recognised." }, 422);
 
   const rawItems = Array.isArray(body.items) ? body.items.slice(0, MAX_LINES) : [];
-  const catalog = await getFreshCatalog();
+  // Only used for item names here; if Shopify can't be reached, the stored order still has them.
+  const catalog = await getFreshCatalog().catch(() => []);
   const items: ReturnInput["items"] = [];
   for (const raw of rawItems) {
     const item = (raw ?? {}) as Record<string, unknown>;

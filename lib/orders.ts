@@ -55,6 +55,8 @@ export type Order = {
   sample?: boolean;
   /** True once this order's items were taken from stock (database mode), so a cancel can return them. */
   stockTaken?: boolean;
+  /** Where the stock was taken from; missing means the database. */
+  stockFrom?: "database" | "shopify";
 };
 
 export type Fulfilment = {

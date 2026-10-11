@@ -6,6 +6,7 @@ import { categories, products as builtIn } from "@/lib/catalog";
 import { CATALOG_TAG } from "@/lib/catalog-source";
 import { databaseEnabled } from "@/lib/db/client";
 import { getProductRow, listAllProducts, upsertProduct } from "@/lib/db/products";
+import { shopifyEnabled } from "@/lib/shopify/config";
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
 const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").map((x) => x.trim().slice(0, 30)).filter(Boolean).slice(0, 12) : []);
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
   if (!databaseEnabled()) return json({ ok: false, mode: "browser" }, 400);
+  if (shopifyEnabled()) return json({ ok: false, error: "Products are managed in Shopify." }, 409);
 
   const body = (await readJson(request)) as Record<string, unknown> | null;
   if (!body) return json({ ok: false, error: "Invalid request." }, 400);

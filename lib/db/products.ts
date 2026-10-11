@@ -61,7 +61,8 @@ export async function upsertProduct(product: Product, status: "active" | "draft"
 }
 
 export class OutOfStock extends Error {
-  constructor(public slug: string, public available: number) {
+  /** `variant`: the colour and size that ran out, when stock is counted per variant (Shopify). */
+  constructor(public slug: string, public available: number, public variant = "") {
     super(`Not enough stock for ${slug}`);
   }
 }

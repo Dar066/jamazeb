@@ -5,7 +5,8 @@ import { CATALOG_TAG } from "@/lib/catalog-source";
 import { json, readJson } from "@/lib/api";
 import { databaseEnabled } from "@/lib/db/client";
 import { updateOrder } from "@/lib/db/orders";
-import { returnStock } from "@/lib/db/products";
+import type { Order } from "@/lib/orders";
+import { returnStock } from "@/lib/stock";
 
 /** Moves an order to its next step, or cancels it. */
 export async function POST(request: Request) {
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
   try {
     let changed = false;
     let giveBack = false;
+    let stockSource: Order["stockFrom"];
     const order = await updateOrder(id, (o) => {
       if (action === "advance" && nextAction(o)) {
         changed = true;
@@ -31,14 +33,15 @@ export async function POST(request: Request) {
       if (action === "cancel" && canCancel(o)) {
         changed = true;
         giveBack = o.stockTaken === true;
-        return { ...o, status: "cancelled", stockTaken: false };
+        stockSource = o.stockFrom;
+        return { ...o, status: "cancelled", stockTaken: false, stockFrom: undefined };
       }
       return null;
     });
     if (!order) return json({ ok: false, error: "Order not found." }, 404);
     // Items of a cancelled order go back on sale.
     if (giveBack) {
-      await returnStock(order.lines);
+      await returnStock({ ...order, stockFrom: stockSource });
       revalidateTag(CATALOG_TAG, "max");
     }
     // Not changed = someone else already moved it on; the latest copy is returned either way.

@@ -4,9 +4,9 @@ import { CATALOG_TAG } from "@/lib/catalog-source";
 import { databaseEnabled } from "@/lib/db/client";
 import { updateOrder } from "@/lib/db/orders";
 import { applyPaymentResult } from "@/lib/db/payment-status";
-import { takeStockAnyway } from "@/lib/db/products";
 import type { Order } from "@/lib/orders";
 import { mockPayFast } from "@/lib/payments/mock-payfast";
+import { stockMode, takeStockAnyway } from "@/lib/stock";
 
 /**
  * Checks the signed payment result before the store shows an order as paid.
@@ -26,20 +26,27 @@ export async function POST(request: Request) {
 
   let order: Order | null = null;
   if (databaseEnabled()) {
+    const mode = stockMode();
     try {
       let newlyPaid = false;
       order = await updateOrder(result.orderId, (o) => {
         const next = applyPaymentResult(o, result.amount, result.outcome);
-        if (next?.status === "paid" && !o.stockTaken) {
+        if (next?.status === "paid" && !o.stockTaken && mode !== "off") {
           newlyPaid = true;
-          return { ...next, stockTaken: true };
+          return { ...next, stockTaken: true, stockFrom: mode };
         }
         return next;
       });
       // The money is taken, so stock goes down even if it was short (never below zero).
       if (newlyPaid && order) {
-        await takeStockAnyway(order.lines);
-        revalidateTag(CATALOG_TAG, "max");
+        try {
+          await takeStockAnyway(order);
+          revalidateTag(CATALOG_TAG, "max");
+        } catch (error) {
+          // The payment still counts. Mark the stock as not taken, so a cancel won't add it back.
+          console.error(`Taking stock for paid order ${order.id} failed; please adjust it by hand`, error);
+          order = await updateOrder(order.id, (o) => ({ ...o, stockTaken: false, stockFrom: undefined }));
+        }
       }
     } catch (error) {
       console.error("Recording payment failed", error);

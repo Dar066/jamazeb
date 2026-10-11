@@ -1,8 +1,8 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useSyncExternalStore } from "react";
-import { validateAdminProduct, type AdminProduct, type ProductErrors } from "@/lib/admin/product-mapping";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
+import { toAdminProduct, validateAdminProduct, type AdminProduct, type ProductErrors } from "@/lib/admin/product-mapping";
 import { saveProduct as saveLocalProduct, useAdminProducts as useLocalProducts } from "@/lib/admin/product-store";
 import { canCancel, moveOn, nextAction } from "@/lib/admin/status";
 import { clearSampleData, loadSampleData } from "@/lib/admin/sample-data";
@@ -11,6 +11,7 @@ import { updateOrder, useOrders } from "@/lib/order-store";
 import type { Order } from "@/lib/orders";
 import { setReturnStatus, useReturns } from "@/lib/return-store";
 import type { ReturnRequest } from "@/lib/returns";
+import { useCatalog } from "../CatalogProvider";
 
 /**
  * Where the admin dashboard's data lives:
@@ -21,6 +22,8 @@ import type { ReturnRequest } from "@/lib/returns";
 export type AdminMode = "database" | "browser";
 
 const ModeContext = createContext<AdminMode>("browser");
+/** The Shopify admin's products page when products come from Shopify (read-only here). */
+const ShopifyContext = createContext<string | undefined>(undefined);
 
 // ---- Database mode: a small shared store filled from /api/admin/data ----
 
@@ -98,7 +101,7 @@ function replaceRemoteOrder(order: Order) {
 
 // ---- Provider ----
 
-export function AdminDataProvider({ mode, children }: { mode: AdminMode; children: React.ReactNode }) {
+export function AdminDataProvider({ mode, shopifyUrl, children }: { mode: AdminMode; shopifyUrl?: string; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { error } = useRemote();
@@ -124,7 +127,11 @@ export function AdminDataProvider({ mode, children }: { mode: AdminMode; childre
     if (error === "unauthorized") router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
   }, [error, router, pathname]);
 
-  return <ModeContext value={mode}>{children}</ModeContext>;
+  return (
+    <ModeContext value={mode}>
+      <ShopifyContext value={shopifyUrl}>{children}</ShopifyContext>
+    </ModeContext>
+  );
 }
 
 // ---- Hooks used by the admin pages ----
@@ -162,11 +169,21 @@ export function useAdminReturns(): ReturnRequest[] {
   return mode === "database" ? returns : local;
 }
 
+/** Set when products are managed in Shopify: the address of its products page. */
+export function useShopifyAdminUrl(): string | undefined {
+  return useContext(ShopifyContext);
+}
+
 export function useAdminProductList(): AdminProduct[] {
   const mode = useAdminMode();
   const local = useLocalProducts();
   const { products } = useRemote();
-  return mode === "database" ? products : local;
+  // Shopify without a database: the shop's own copy of the products.
+  const catalog = useCatalog();
+  const shopify = useShopifyAdminUrl();
+  const fromShop = useMemo(() => catalog.map((p) => toAdminProduct(p)), [catalog]);
+  if (mode === "database") return products;
+  return shopify ? fromShop : local;
 }
 
 export type SaveResult = { ok: true; product: AdminProduct } | { ok: false; error: string; fieldErrors?: ProductErrors };

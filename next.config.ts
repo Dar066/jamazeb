@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   poweredByHeader: false,
+  // Product photos from Shopify's image CDN (Phase 6C).
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "cdn.shopify.com", pathname: "/**" }],
+  },
   turbopack: {
     rules: {
       "*.css": {

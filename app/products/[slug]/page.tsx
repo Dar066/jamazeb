@@ -76,7 +76,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
     material: product.fabric,
     color: product.colours.map((c) => c.name).join(", "),
     url,
-    ...(product.images?.length ? { image: product.images.map((i) => `${site.url}${i.src}`) } : {}),
+    ...(product.images?.length ? { image: product.images.map((i) => (i.src.startsWith("http") ? i.src : `${site.url}${i.src}`)) } : {}),
     offers: {
       "@type": "Offer",
       url,

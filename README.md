@@ -5,6 +5,7 @@ project and a reusable starter for client stores.
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Vercel
 **Data:** products, orders and exchange/refund requests in PostgreSQL (Supabase) when `DATABASE_URL` is set; otherwise a browser-only demo mode with the built-in catalogue in `lib/catalog.ts`.
+Products, prices and stock can come from **Shopify** instead (`SHOPIFY_*` settings, Phase 6C).
 **Payments & delivery:** mock PayFast and courier providers behind swappable interfaces (`lib/payments/`, `lib/shipping.ts`).
 
 ## Run it locally
@@ -27,6 +28,12 @@ npm run dev                  # http://localhost:3000
 | `ADMIN_SESSION_SECRET` | Server-only key that signs the admin sign-in cookie. Any long random string |
 | `DATABASE_URL` | Server-only PostgreSQL address (Supabase transaction pooler, `jamazeb_app` login). Empty = demo mode |
 | `MOCK_PAYMENT_SECRET` | Server-only key that signs demo payment links and results. Any long random string |
+| `SHOPIFY_STORE_DOMAIN` | Shopify store address, e.g. `jamazeb-dev.myshopify.com`. With the token below, products come from Shopify |
+| `SHOPIFY_STOREFRONT_TOKEN` | Server-only Storefront API private token (Headless channel) |
+| `SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET` | Optional, server-only: Dev Dashboard app login, so orders change stock in Shopify |
+| `SHOPIFY_ADMIN_TOKEN` | Optional, server-only: a fixed Admin API token instead of the client ID and secret |
+| `SHOPIFY_LOCATION_ID` | Optional: the Shopify location stock is taken from (default: the item's first location) |
+| `SHOPIFY_WEBHOOK_SECRET` | Optional, server-only: webhook signing secret, so Shopify changes show straight away |
 
 ## Project structure
 
@@ -35,6 +42,8 @@ app/            pages, layout, SEO files (robots, sitemap, icon), fonts
 app/api/        order and payment endpoints
 components/     header, footer, product card, cart, checkout, chat widget, forms
 lib/            site settings, mock catalogue, stores, validation, shipping, payments
+lib/db/         database queries (orders, returns, products)
+lib/shopify/    Shopify adapter: Storefront and Admin API clients, product mapping, stock
 ```
 
 ## Build phases
@@ -44,7 +53,7 @@ lib/            site settings, mock catalogue, stores, validation, shipping, pay
 3. **Cart & checkout:** cart, wishlist, checkout with cash on delivery and mock PayFast ✅
 4. **Customer care:** order tracking, exchange/refund form, help pages with FAQ schema, customer account ✅
 5. **Admin dashboard:** orders and delivery steps, products and stock, customers, exchange/refund approvals, reports with CSV ✅
-6. **Database:** 6A orders and returns in Supabase ✅ · 6B products and stock in the database ✅ · then a Shopify adapter
+6. **Database:** 6A orders and returns in Supabase ✅ · 6B products and stock in the database ✅ · 6C Shopify adapter ✅
 7. Performance and security pass, documentation and hand-over
 
 ## How checkout works
@@ -129,6 +138,53 @@ customer's orders and customers see the store's updates on any device. Without i
 Run the three SQL files in the new project (in the order above), copy the rows (`pg_dump --schema=jamazeb --data-only` from the old project,
 then `psql` into the new one), switch `DATABASE_URL` in Vercel and redeploy. Then drop the `jamazeb` schema in the
 old project.
+
+## Products from Shopify (Phase 6C)
+
+For a store that already runs on Shopify: Shopify keeps the products, prices and stock, and Jamazeb is the
+shop front. Checkout (cash on delivery, PayFast), orders, tracking, returns and the admin dashboard stay as they
+are. Set `SHOPIFY_STORE_DOMAIN` and `SHOPIFY_STOREFRONT_TOKEN` to switch; remove them to switch back.
+
+- **Reading products** (`lib/shopify/products.ts`, Storefront API). Only products published to the Headless
+  channel appear. How they map:
+  - option **Colour** (or Color) → colours, with the option's swatch colour; option **Size** → sizes;
+  - collections or tags named `lawn`, `unstitched`, `ready-to-wear`, `dupattas` → collections; `new-in` → New In
+    (without one, the 8 newest products); a compare-at price → Sale;
+  - tag `stitchable` → offers stitching; tag `fabric:Chiffon` or metafield `custom.fabric` → fabric;
+  - metafields `custom.details` and `custom.care` (a list, or one item per line) → the product's details and care;
+  - images → product photos (served through Next.js from `cdn.shopify.com`).
+  One price per product: the lowest variant price is used, so keep all variants at the same price. Prices are read
+  as rupees.
+- **Stock.** The shop shows the total across variants; checkout checks the exact colour and size. With an Admin
+  API login, a cash-on-delivery order takes stock in Shopify when it is placed, an online payment when it is
+  confirmed, and a cancel in the admin gives it back (`lib/shopify/stock.ts`). Each change states the stock it
+  expects to change from, so a sale in Shopify at the same moment can't cause overselling. Untracked items and
+  "continue selling when out of stock" are respected. Without the login, stock is only checked here and the
+  store adjusts it in Shopify.
+- **Admin.** The products page lists Shopify's products read-only, with a link to manage them in Shopify.
+- **Freshness.** Pages refresh within the hour, after every order, or straight away with the webhook.
+- **If Shopify can't be reached,** pages keep their last copy and checkout asks to try again. Shopify mode never
+  falls back to the demo products.
+
+### Setting it up
+
+1. Create a free development store in the Shopify Dev Dashboard, and add a few products (option names
+   `Colour` and `Size`; collections as above).
+2. Install the **Headless** sales channel, create a storefront and copy its **private access token**. Under its
+   Storefront API permissions, allow reading product inventory so stock numbers show. Publish the products to
+   the Headless channel.
+3. In Vercel add `SHOPIFY_STORE_DOMAIN` and `SHOPIFY_STOREFRONT_TOKEN` (Sensitive) and redeploy.
+4. Optional, stock changes (needs the database): in the Dev Dashboard create an app with the scopes
+   `read_products`, `read_inventory` and `write_inventory`, release it and install it on the store. Add its
+   Client ID and secret as `SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET` (Sensitive). The app swaps them for a
+   24-hour token by itself. This works when the app and the store are in the same Shopify organisation; for a
+   client's store, use an Admin API token from their install as `SHOPIFY_ADMIN_TOKEN`.
+5. Optional, instant updates: Shopify admin → Settings → Notifications → Webhooks: add Product creation, Product
+   update, Product deletion and Inventory level update, format JSON, address
+   `https://<your-site>/api/shopify/webhook`. Copy the signing secret shown there into `SHOPIFY_WEBHOOK_SECRET`.
+   Every call is checked against it.
+
+After changing a Shopify permission, redeploy so the store reads it again.
 
 ## Notes
 
